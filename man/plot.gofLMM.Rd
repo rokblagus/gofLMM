@@ -4,14 +4,14 @@
 \alias{plot.gofLMM}
 \title{Plot Function}
 \usage{
-\method{plot}{gofLMM}(object, type = 2, subset.M = NULL, ...)
+\method{plot}{gofLMM}(x, type = 2, subset.M = NULL, ...)
 }
 \arguments{
-\item{object}{an object of class \code{"gofLMM"}, an object returned by a call to \code{\link{gof.lmm}}}
+\item{x}{an object of class \code{"gofLMM"}, an object returned by a call to \code{\link{gof.lmm}}}
 
 \item{type}{Type of x-axis. Possible values are 1 for 1:N and 2 for the predicted values. Defaults to 2.}
 
-\item{subset.M}{How many realizations of $W^m$ should be plotted. Defaults to NULL and all the realizations are plotted.}
+\item{subset.M}{How many realizations of \eqn{W^m} should be plotted. Defaults to NULL and all the realizations are plotted.}
 
 \item{...}{additional arguments passed to from or to other methods}
 }

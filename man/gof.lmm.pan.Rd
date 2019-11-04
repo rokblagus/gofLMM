@@ -11,14 +11,14 @@ gof.lmm.pan(fit, residuals = c("individual", "cluster"),
 \arguments{
 \item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N !}
 
-\item{residuals}{Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \textit{individual} and \textit{cluster-speciffic} residuals, respectively.}
+\item{residuals}{Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \emph{individual} and \emph{cluster-speciffic} residuals, respectively.}
 
 \item{std.type}{Type of standardization to be used for the residuals when constructing the process.
-Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.}
+Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.}
 
-\item{use.correction.for.imbalance}{Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.}
+\item{use.correction.for.imbalance}{Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.}
 
-\item{subset.fix}{Two-sided formula. If nonnull, the process $W^{F^s}$ will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process $W^{F^s}$ is not constructed.}
+\item{subset.fix}{Two-sided formula. If nonnull, the process \eqn{W^{F^s}} will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process \eqn{W^{F^s}} is not constructed.}
 
 \item{M}{Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.}
 

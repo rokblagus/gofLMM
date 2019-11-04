@@ -15,8 +15,9 @@
 
 #' Internal function
 #' @keywords internal
+#' @param ... additional arguments passed to from or to other methods
 
-plot.gofLMM.part<-function(W,Wm,type=c(1,2),y,ym,...){
+my.plot.gofLMM.part<-function(W,Wm,type=c(1,2),y,ym,...){
 
 if (type==1) {x<-1:length(W);xm<-list(); for (ii in 1:length(Wm)) { xm[[ii]]<-1:length(W) }} else {x<-y[order(y)];xm=lapply(ym,function(x) x[order(x)] )}
 
@@ -491,17 +492,17 @@ list( WP2,WP2s, estP,estS)
 #' Goodness-of fit test based on cumulative sum stochastic process
 
 #'
-#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
-#' @param residuals Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \textit{individual} and \textit{cluster-speciffic} residuals, respectively.
+#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Cannot use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
+#' @param residuals Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \emph{individual} and \emph{cluster-speciffic} residuals, respectively.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
-#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
-#' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
-#' @param  subset.fix Two-sided formula. If nonnull, the process $W^{F^s}$ will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process $W^{F^s}$ is not constructed.
-#' @param type How to obtain the processes $W^m$. Possible values are \code{"simulation"} for the simulation approach, \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach. When using \code{type="permutation"}, sign-flipping will be used by default if not specified otherwise by the argument \code{force.permutation.with.O}.
+#' Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.
+#' @param use.correction.for.imbalance Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.
+#' @param subset.fix Two-sided formula. If nonnull, the process \eqn{W^{F^s}} will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process \eqn{W^{F^s}} is not constructed.
+#' @param type How to obtain the processes \eqn{W^m}. Possible values are \code{"simulation"} for the simulation approach, \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach. When using \code{type="permutation"}, sign-flipping will be used by default if not specified otherwise by the argument \code{force.permutation.with.O}.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
-#' @param order.by.original Logical. Should the residuals in the the processes $W^m$ be ordered by the original fitted values? Defaults to \code{FALSE}.
+#' @param order.by.original Logical. Should the residuals in the the processes \eqn{W^m} be ordered by the original fitted values? Defaults to \code{FALSE}.
 #' Makes sense only for \code{type="sign.flip"} and \code{type="permutation"} since when \code{type="simulation"} the ordering is always based on the original predictions.
-#' It is programmed such that J_i is reestimated at each iteration $m$.
+#' It is programmed such that \eqn{J_i} is reestimated at each iteration \eqn{m}.
 #' @param force.permutation.with.O Logical. Should the permutations be used also for the O process? Defaults to \code{FALSE}.
 #' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
 #' @return An object of class \code{"gofLMM"} for which \code{plot} and \code{summary} functions are available.
@@ -572,22 +573,22 @@ list( WP2,WP2s, estP,estS)
 #' data(Orthodont)
 #' Orthodont$Subject<- rep(1:27,each=4)
 #' fm1<-lme(distance~age,random=~1|Subject,data=Orthodont,control=lmeControl( returnObject = TRUE),method="REML")
-#' gof.fm1<-gof.lmm(fm1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=500,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
+#' gof.fm1<-gof.lmm(fm1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=50,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
 #' plot.gofLMM(gof.fm1,type=2,subset.M=NULL,xlab="",main="Orthodont, model 1")
 #' summary.gofLMM(gof.fm1)
 #'
 #' fm1.1<-lme(distance~age,random=~age|Subject,data=Orthodont,control=lmeControl( returnObject = TRUE),method="REML")
-#' gof.fm1.1<-gof.lmm(fm1.1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=500,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
+#' gof.fm1.1<-gof.lmm(fm1.1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=50,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
 #' plot.gofLMM(gof.fm1.1 ,type=2,subset.M=NULL,xlab="",main="Orthodont, model 1.1")
 #' summary.gofLMM(gof.fm1.1)
 #'
 #' fm2<-lme(distance~age+Sex,random=~1|Subject,data=Orthodont,control=lmeControl( returnObject = TRUE),method="REML")
-#' gof.fm2<-gof.lmm(fm2,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=distance~age,type= "sign.flip" ,M=500,order.by.original=FALSE,force.permutation.with=FALSE,verbose=TRUE)
+#' gof.fm2<-gof.lmm(fm2,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=distance~age,type= "sign.flip" ,M=50,order.by.original=FALSE,force.permutation.with=FALSE,verbose=TRUE)
 #' plot.gofLMM(gof.fm2,type=2,subset.M=NULL,xlab="",main="Orthodont, model 2")
 #' summary.gofLMM(gof.fm2)
 #'
 #' fm2.1<-lme(distance~age*Sex,random=~1|Subject,data=Orthodont,control=lmeControl( returnObject = TRUE),method="REML")
-#' gof.fm2.1<-gof.lmm(fm2.1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=500,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
+#' gof.fm2.1<-gof.lmm(fm2.1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=50,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
 #' plot.gofLMM(gof.fm2.1,type=2,subset.M=NULL,xlab="",main="Orthodont, model 2.1")
 #' summary.gofLMM(gof.fm2.1)
 
@@ -1076,25 +1077,22 @@ res
 
 
 
-#fit #result of call to gofLMM
-#type #type of x-axis, 1=1:N, 2=y.hat
-#subset.M #how many random permutations to plot
 
 #' Plot Function
 #'
 #' plots the processes which are the result of a call to \code{gof.lmm}
 #'
-#' @param object an object of class \code{"gofLMM"}, an object returned by a call to \code{\link{gof.lmm}}
+#' @param x an object of class \code{"gofLMM"}, an object returned by a call to \code{\link{gof.lmm}}
 #' @param type Type of x-axis. Possible values are 1 for 1:N and 2 for the predicted values. Defaults to 2.
-#' @param subset.M How many realizations of $W^m$ should be plotted. Defaults to NULL and all the realizations are plotted.
+#' @param subset.M How many realizations of \eqn{W^m} should be plotted. Defaults to NULL and all the realizations are plotted.
 #' @param ... additional arguments passed to from or to other methods
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
 #' @seealso \code{\link{gof.lmm.pan}}, \code{\link{gof.lmm}} and \code{\link{summary.gofLMM}}
 #' @export
 
 
-plot.gofLMM<-function(object,type=2,subset.M=NULL,...){
-
+plot.gofLMM<-function(x,type=2,subset.M=NULL,...){
+object<-x
 txt1<-expression(W^O)
 txt2<-expression(W^F)
 txt3<-expression(W^F^S)
@@ -1104,10 +1102,10 @@ if (is.null(object$F)) par(mfrow=c(1,1)) else{ if (is.null(object$Fs)) par(mfrow
 if (is.null(subset.M)) sbset<-1:length(object$Om) else sbset<-sample(1:length(object$Om),subset.M)
 
 
-plot.gofLMM.part(object$O,object$Om[sbset],type=type,y=object$predO,ym=object$predOm[sbset],ylab=txt1,...)
-if (!is.null(object$F)) plot.gofLMM.part(object$F,object$Fm[sbset],type=type,y=object$predF,ym=object$predFm[sbset],ylab=txt2,...)
+my.plot.gofLMM.part(object$O,object$Om[sbset],type=type,y=object$predO,ym=object$predOm[sbset],ylab=txt1,...)
+if (!is.null(object$F)) my.plot.gofLMM.part(object$F,object$Fm[sbset],type=type,y=object$predF,ym=object$predFm[sbset],ylab=txt2,...)
 
-if (!is.null(object$Fs))  plot.gofLMM.part(object$Fs,object$Fsm[sbset],type=type,y=object$predFs,ym=object$predFsm[sbset],ylab=txt3,...)
+if (!is.null(object$Fs))  my.plot.gofLMM.part(object$Fs,object$Fsm[sbset],type=type,y=object$predFs,ym=object$predFsm[sbset],ylab=txt3,...)
 
 
 
@@ -1120,16 +1118,14 @@ if (!is.null(object$Fs))  plot.gofLMM.part(object$Fs,object$Fsm[sbset],type=type
 #' makes a summary of a call to \code{gof.lmm}
 #'
 #' @param object an object of class \code{"gofLMM"}, an object returned by a call to \code{\link{gof.lmm}}
-#' @param conf.level the confidence level, defaults to 0.95
-#' @param ... additional arguments affecting the summary produced.
-
-#' @return a matrix containing KS and CvM test statistics and corresponding $p$-values for the constructed processes.
+#' @param ... additional arguments passed to from or to other methods
+#' @return a matrix containing KS and CvM test statistics and corresponding \eqn{p}-values for the constructed processes.
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
 #' @seealso \code{\link{gof.lmm.pan}}, \code{\link{gof.lmm}} and \code{\link{plot.gofLMM}}
 #' @export
 
 
-summary.gofLMM<-function(object){
+summary.gofLMM<-function(object,...){
 
 O.s<-test.stat.p.val(object$O,object$Om)
 if (!is.null(object$F)) F.s<-test.stat.p.val(object$F,object$Fm) else F.s<-NULL
@@ -1147,13 +1143,14 @@ res
 #'
 #' prints results from a call to \code{gof.lmm}
 #'
-#' @param object an object of class \code{"gofLMM"}, an object returned by a call to \code{\link{gof.lmm}}
+#' @param x an object of class \code{"gofLMM"}, an object returned by a call to \code{\link{gof.lmm}}
+#' @param ... additional arguments passed to from or to other methods
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
 #' @seealso \code{\link{gof.lmm}}, \code{\link{summary.gofLMM}} and \code{\link{plot.gofLMM}}
 #' @export
 
 
-print.gofLMM<-function(object){
+print.gofLMM<-function(x,...){
 
   cat("Cumsum process.")
 
@@ -1162,7 +1159,8 @@ print.gofLMM<-function(object){
 
 
 
-#######main function
+
+
 
 #' Goodness-of fit test for LMM as proposed by Pan et al.
 #'
@@ -1170,11 +1168,11 @@ print.gofLMM<-function(object){
 
 #'
 #' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N !
-#' @param residuals Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \textit{individual} and \textit{cluster-speciffic} residuals, respectively.
+#' @param residuals Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \emph{individual} and \emph{cluster-speciffic} residuals, respectively.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
-#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
-#' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
-#' @param  subset.fix Two-sided formula. If nonnull, the process $W^{F^s}$ will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process $W^{F^s}$ is not constructed.
+#' Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.
+#' @param use.correction.for.imbalance Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.
+#' @param subset.fix Two-sided formula. If nonnull, the process \eqn{W^{F^s}} will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process \eqn{W^{F^s}} is not constructed.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
 #' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
 #' @return An object of class \code{"gofLMM"} for which \code{plot} and \code{summary} functions are available.
@@ -1781,9 +1779,10 @@ get.sim.proc.fast.ororg<-function(fit, std.type ,use.correction.for.imbalance ,n
 #'
 #' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}; ID variable must be numeric and ordered from 1:N !.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
-#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
-#' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
+#' Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.
+#' @param use.correction.for.imbalance Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
+#' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
 #' @return KS and CvM pvalues for Pan, Simulation, sign-flip and permutations.
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
 #' @details for sign.flip and permutation the residuals are ordered by the refitted fitted values.
@@ -2771,9 +2770,10 @@ get.sim.proc.fast<-function(fit, std.type ,use.correction.for.imbalance ,n,N,x,Z
 #'
 #' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}; ID variable must be numeric and ordered from 1:N !.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
-#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
-#' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
+#' Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.
+#' @param use.correction.for.imbalance Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
+#' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
 #' @return KS and CvM pvalues for Pan, Simulation, sign-flip and permutations.
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
 #' @details for sign.flip and permutation the residuals are ordered by the refitted fitted values.
@@ -3690,13 +3690,13 @@ get.sim.proc.i<-function(fit, residuals ,std.type ,use.correction.for.imbalance 
 
 #'
 #' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
-#' @param residuals Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \textit{individual} and \textit{cluster-speciffic} residuals, respectively.
+#' @param residuals Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \emph{individual} and \emph{cluster-speciffic} residuals, respectively.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
-#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
-#' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
-#' @param type How to obtain the processes $W^m$. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.
+#' Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.
+#' @param use.correction.for.imbalance Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.
+#' @param type How to obtain the processes \eqn{W^m}. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
-#' @param order.by.original Logical. Should the residuals in the the processes $W^m$ be ordered by the original fitted values? Defaults to \code{FALSE}.
+#' @param order.by.original Logical. Should the residuals in the the processes \eqn{W^m} be ordered by the original fitted values? Defaults to \code{FALSE}.
 #' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
 #' @return An object of class \code{"gofLMM"} for which \code{plot} and \code{summary} functions are available.
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
@@ -3758,13 +3758,13 @@ get.sim.proc.i<-function(fit, residuals ,std.type ,use.correction.for.imbalance 
 #' aids.art<-data.frame(ptnt=id,outcome=yy,x1=x1,x2=x22,x4=x4)
 #' library(nlme)
 #' fit<-lme(fixed=outcome~ x2+x1:x2, data=aids.art, random=~1|ptnt,control=lmeControl( returnObject = TRUE),method="REML" )
-#' fit.gof<-gof.lmm.O.type2(fit,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,type= "permutation" ,M=100,order.by.original=FALSE,verbose=TRUE)
+#' fit.gof<-gof.lmm.O.type2(fit,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,type= "permutation" ,M=25,order.by.original=FALSE,verbose=TRUE)
 #' fit.gof$KS
 #' fit2<-lme(fixed=outcome~ x2+x1:x2, data=aids.art, random=~x2|ptnt,control=lmeControl( returnObject = TRUE),method="REML" )
-#' fit.gof2<-gof.lmm.O.type2(fit2,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,type= "permutation" ,M=100,order.by.original=FALSE,verbose=TRUE)
+#' fit.gof2<-gof.lmm.O.type2(fit2,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,type= "permutation" ,M=25,order.by.original=FALSE,verbose=TRUE)
 #' fit.gof2$KS
 #' fit3<-lme(fixed=outcome~ x2+x1:x2, data=aids.art, random=~x1|ptnt,control=lmeControl( returnObject = TRUE),method="REML" )
-#' fit.gof3<-gof.lmm.O.type2(fit3,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,type= "permutation" ,M=100,order.by.original=FALSE,verbose=TRUE)
+#' fit.gof3<-gof.lmm.O.type2(fit3,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,type= "permutation" ,M=25,order.by.original=FALSE,verbose=TRUE)
 #' fit.gof3$KS
 
 
@@ -4111,14 +4111,14 @@ gof.lmm.O.type2.i<-function(fit,residuals ,std.type,use.correction.for.imbalance
 
 #'
 #' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
-#' @param residuals Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \textit{individual} and \textit{cluster-speciffic} residuals, respectively.
+#' @param residuals Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \emph{individual} and \emph{cluster-speciffic} residuals, respectively.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
-#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
-#' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
-#' @param type How to obtain the processes $W^m$. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.
+#' Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.
+#' @param use.correction.for.imbalance Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.
+#' @param type How to obtain the processes \eqn{W^m}. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
 #' @param B Number of boot replications. Defaults to \code{100}.
-#' @param order.by.original Logical. Should the residuals in the the processes $W^m$ be ordered by the original fitted values? Defaults to \code{FALSE}.
+#' @param order.by.original Logical. Should the residuals in the the processes \eqn{W^m} be ordered by the original fitted values? Defaults to \code{FALSE}.
 #' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
 #' @return An object of class \code{"gofLMM"} for which \code{plot} and \code{summary} functions are available.
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
@@ -4541,12 +4541,12 @@ return(Ainv)
 #' Goodness-of fit test based on cumulative sum stochastic process for O using non-diagonal blocked matrices A and B. An error occurs often when calculating the MP generalized inverse of the matrix B, which is due to Lapack routine. Can be very slow and inefficient when n and ni are large. Now I replaced the ginv() from MASS by my.MP which is the MP inverse as suggested by Demidenko p.51 but the error persits, so it must occur in the fitting of lme.
 
 #'
-#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
+#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Cannot use transformations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
 #' @param residuals Residuals to be used when constructing the process.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
-#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
-#' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
-#' @param type How to obtain the processes $W^m$. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.
+#' Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.
+#' @param use.correction.for.imbalance Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.
+#' @param type How to obtain the processes \eqn{W^m}. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
 #' @param order.by.original Order the residuals by original fitted values? Defaults to FALSE.
 #' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
@@ -4841,7 +4841,15 @@ res
 } #end of function
 
 
-summary.gofLMM.testO<-function(object){
+
+#' Summary function
+#'
+#' summary function
+#' @param object an object returned by a call to a function
+#' @param ... additional arguments passed to from or to other methods
+
+
+my.summary.gofLMM.testO<-function(object,...){
 
   O.s<-test.stat.p.val(object$O,object$Om)
 
@@ -4971,12 +4979,12 @@ get.sim.proc.O.test.2<-function(fit, residuals ,std.type ,use.correction.for.imb
 #' Goodness-of fit test based on cumulative sum stochastic process for O using a limit expressions for diagonal blocked matrices A and B.
 
 #'
-#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
-#' @param residuals Residuals to be used when constructing the process. Currently implemented only for \code{"individual"} for \textit{individual} residuals.
+#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Cannot use transformations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
+#' @param residuals Residuals to be used when constructing the process. Currently implemented only for \code{"individual"} for \emph{individual} residuals.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
-#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
+#' Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.
 #' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
-#' @param type How to obtain the processes $W^m$. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.
+#' @param type How to obtain the processes \eqn{W^m}. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
 #' @param order.by.original Order the residuals by the original fitted values. Deafults to FALSE.
 #' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
@@ -5310,12 +5318,12 @@ get.sim.proc.O.test.type2<-function(fit, residuals ,std.type ,use.correction.for
 #' Goodness-of fit test based on cumulative sum stochastic process for O using non-diagonal blocked matrices A and B. I am not reestimating A and B and always ordering by the original fitted values!
 
 #'
-#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
+#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Cannot use transformations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
 #' @param residuals Residuals to be used when constructing the process.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
-#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
-#' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
-#' @param type How to obtain the processes $W^m$. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.
+#' Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.
+#' @param use.correction.for.imbalance Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.
+#' @param type How to obtain the processes \eqn{W^m}. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
 #' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
@@ -5593,12 +5601,12 @@ gof.lmm.O.test.type2<-function(fit,residuals="individual",std.type=c(1,2),use.co
 #' Goodness-of fit test based on cumulative sum stochastic process for O using non-diagonal blocked matrices A and B, simulation approach where refitting is not necessary.
 
 #'
-#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
+#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Cannot use transformations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!
 #' @param residuals Residuals to be used when constructing the process.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
-#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
-#' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
-#' @param type How to obtain the processes $W^m$. Possible values are  \code{"sign.flip"} for the sign-flipping random matrix, \code{"normal"} for the standard normal (same for all within cluster), \code{"normal.m"} for the standard normal (different for all within cluster).
+#' Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.
+#' @param use.correction.for.imbalance Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.
+#' @param type How to obtain the processes \eqn{W^m}. Possible values are  \code{"sign.flip"} for the sign-flipping random matrix, \code{"normal"} for the standard normal (same for all within cluster), \code{"normal.m"} for the standard normal (different for all within cluster).
 #' @param M Number of random simulations/sign-flipps. Defaults to \code{100}.
 #' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}

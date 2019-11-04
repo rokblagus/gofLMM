@@ -10,16 +10,16 @@ gof.lmm.O.test(fit, residuals = "individual", std.type = c(1, 2),
   verbose = FALSE)
 }
 \arguments{
-\item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!}
+\item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Cannot use transformations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!}
 
 \item{residuals}{Residuals to be used when constructing the process.}
 
 \item{std.type}{Type of standardization to be used for the residuals when constructing the process.
-Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.}
+Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.}
 
-\item{use.correction.for.imbalance}{Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.}
+\item{use.correction.for.imbalance}{Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.}
 
-\item{type}{How to obtain the processes $W^m$. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.}
+\item{type}{How to obtain the processes \eqn{W^m}. Possible values are  \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach.}
 
 \item{M}{Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.}
 
