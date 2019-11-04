@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1572244747596.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3852932305",
+    "id" : "18EA2189",
+    "lastKnownWriteTime" : 1572348859,
+    "last_content_update" : 1572348859631,
+    "path" : "C:/Users/rblagus/Dropbox (MF Uni LJ)/gofLinearMixedModel/ScriptwithFinalApproachNoRefitForO.R",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "125,0",
+        "scrollLine" : "88"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

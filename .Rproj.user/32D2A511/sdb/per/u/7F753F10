@@ -1,0 +1,21 @@
+{
+    "collab_server" : "",
+    "contents" : "#setwd(\"/Users/jakobpeterlin/Documents/dr/rb/1mice\")\n\n\nlibrary(nlme)\n\ndf1 = read.csv(\"E:\\\\Pomoc pri clankih\\\\JakobMisi\\\\df1.csv\")\ndf2 = read.csv(\"E:\\\\Pomoc pri clankih\\\\JakobMisi\\\\df2.csv\")\n\n\n\n\n\ndf1$Time = as.factor(df1$Time)\n\n\ndf1n = na.omit(df1)\ndf2n = na.omit(df2)\n\ndf1n$ID<-as.numeric(factor(df1n$ID))\ndf2n$ID<-as.numeric(factor(df2n$ID))\n\n \n\n\n\n\n\n\n\n\n\nm10 = lme(Volume1 ~Time, data = df1n, random =~1 | ID, method = \"ML\",\n          control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\n\nm11 = lme(Volume1 ~Time + Weight, data = df1n, random =~1 | ID, method = \"ML\",\n          control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\n\nm12 = lme(Volume1 ~Time + Time:Group, data = df1n, random =~1 | ID, method = \"ML\",\n          control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\n\nm13 = lme(Volume1 ~Time + Weight + Time:Group, data = df1n, random =~1 | ID, method = \"ML\",\n          control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\n\nt10 = gof.lmm(m10, type = \"simulation\", std.type = 2)\nt11 = gof.lmm(m11, type = \"simulation\", std.type = 2)\nt12 = gof.lmm(m12, type = \"simulation\", std.type = 2)\nt13 = gof.lmm(m13, type = \"simulation\", std.type = 2)\n\n\n\n\n\nms10 = lme(sqrt(Volume1) ~Time, data = df1n, random =~1 | ID, method = \"ML\",\n           control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\n\nms11 = lme(sqrt(Volume1) ~Time + Weight, data = df1n, random =~1 | ID, method = \"ML\",\n           control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\n\nms12 = lme(sqrt(Volume1) ~Time + Time:Group, data = df1n, random =~1 | ID, method = \"ML\",\n           control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\n\nms13 = lme(sqrt(Volume1) ~Time + Weight + Time:Group, data = df1n, random =~1 | ID, method = \"ML\",\n           control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\n\nts10 = gof.lmm(ms10, type = \"simulation\", std.type = 2)\nts11 = gof.lmm(ms11, type = \"simulation\", std.type = 2)\nts12 = gof.lmm(ms12, type = \"simulation\", std.type = 2)\nts13 = gof.lmm(ms13, type = \"simulation\", std.type = 2)\n\n\n\nm23 = lme(Volume2 ~Time+ Weight + Time:Group, data = df1n, random =~Time | ID, method = \"REML\",\n          control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\nt23 = gof.lmm(m23, type = \"sign.flip\",order.by.original = TRUE, std.type = 2,residuals=\"individual\",M=100)\n\nsummary(t23)\nplot(t23)\n\nm23 = lme(Volume2 ~Time+ Weight + Time:Group, data = df1n, random =~Time | ID, method = \"REML\",\n          control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\n\n\nm23 = lme(Volume2 ~Time+ Weight + Time:Group, data = df2n, random =~1 | ID, method = \"REML\",\n          control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\nt23 = gof.lmm(m23, type = \"simulation\",order.by.original = TRUE, std.type = 2,residuals=\"individual\",M=100)\n\ndf2n$sqrt.V2<-sqrt(df2n$Volume2)\ndf2n$Time<-df2n$Time-1\n\nm23 = lme(sqrt.V2 ~Time+I(Time^2)+ I(Time^4) +Group+Weight + Time:Group+ I(Time^2):Group+I(Time^4):Group, data = df2n, random =~Time | ID, method = \"REML\",\n          control=lmeControl( returnObject = TRUE), keep.data = TRUE)\n\nt23 = gof.lmm(m23, type = \"simulation\",order.by.original = TRUE, std.type = 2,residuals=\"individual\",M=100)\n\ndf2n$Time[df2n$Time==1]<-5\n\n",
+    "created" : 1566821846385.000,
+    "dirty" : true,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "3927266256",
+    "id" : "7F753F10",
+    "lastKnownWriteTime" : 1566810744,
+    "last_content_update" : 1566902370546,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "tempName" : "Untitled2"
+    },
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

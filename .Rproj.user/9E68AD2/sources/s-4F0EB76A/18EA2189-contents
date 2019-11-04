@@ -1,0 +1,348 @@
+
+"%^%" <- function(x, n)   with(eigen(x), vectors %*% (values^n * t(vectors)))
+
+CvM<-function(x) {sum(x**2)}
+
+#' Internal function
+#' @keywords internal
+
+KS<-function(x) {max(abs(x))}
+
+#' Internal function
+#' @keywords internal
+
+p.val<-function(testStat,testStatm) {(sum( testStatm>= testStat )+1)/(length(testStatm)+1)}
+
+
+
+
+sim.data.cluster<-function(N,n,betas, norm.eps,var.eps=NULL,shape=NULL,scale=NULL,norm.re.intercept,var.re.intercept=NULL,shape.re.intercept=NULL,scale.re.intercept=NULL,sim.re.slope,
+norm.re.slope=NULL,var.re.slope=NULL,shape.re.slope=NULL,scale.re.slope=NULL,sim.x2.qdr=FALSE,b.qdr=NULL){
+
+
+
+yy<-NA
+
+id<-NA
+x1<-NA
+x2<-NA
+for (gg in 1:N){
+
+  id<-c(id,rep(gg,each=n[gg]))
+  x11<-runif(n[gg])
+  x1<-c(x1,x11)
+
+  x22<-runif(n[gg])
+  x2<-c(x2,x22)
+  if (norm.re.intercept==TRUE) re.int<-rnorm(1,sd=sqrt(var.re.intercept)) else re.int<-rgamma(1,shape=shape.re.intercept,scale=scale.re.intercept)-shape.re.intercept*scale.re.intercept
+
+  b<-rep(re.int,each=n[gg])
+
+
+
+  if (norm.eps==TRUE) eps<-rnorm(n[gg],sd=sqrt(var.eps)) else eps<-rgamma(n[gg],shape=shape,scale=scale)-shape*scale
+
+  if (sim.re.slope==TRUE) {
+  if (norm.re.slope==TRUE) re.slope<-rnorm(1,sd=sqrt(var.re.slope)) else re.slope<-rgamma(1,shape=shape.re.slope,scale=scale.re.slope)-shape.re.slope*scale.re.slope
+
+  b2<-rep(re.slope,each=n[gg])
+
+   if (sim.x2.qdr==FALSE)   y<-betas[1]+betas[2]*x11+betas[3]*x22+b+b2*x11+eps  else y<-betas[1]+betas[2]*x11+betas[3]*x22+b+b2*x11+eps+ b.qdr*x11**2
+  } else {
+     if (sim.x2.qdr==FALSE) y<-betas[1]+betas[2]*x11+betas[3]*x22+b+eps   else y<-betas[1]+betas[2]*x11+betas[3]*x22+b+eps+ b.qdr*x11**2
+
+  }
+  yy<-c(yy,y)
+
+}
+yy<-yy[-1]
+x2<-x2[-1]
+x1<-x1[-1]
+id<-id[-1]
+df<-data.frame(id=id,y=yy,x1=x1,x2=x2)
+
+df
+
+}
+
+
+
+library(nlme)
+library(MASS)
+
+nSim=500
+
+#ii=1
+N=50
+n=rep(20,N)
+betas=c(-1,0.25,0.5)
+x.prob=0.4
+norm.eps=TRUE
+var.eps=0.5
+shape=NULL
+scale=NULL
+norm.re.intercept=TRUE
+var.re.intercept=0.25
+shape.re.intercept=NULL
+scale.re.intercept=NULL
+sim.re.slope=TRUE
+norm.re.slope=TRUE
+var.re.slope=0.25
+shape.re.slope=NULL
+scale.re.slope=NULL
+sim.x2.qdr=FALSE
+b.qdr=NULL
+fit.re.slope=TRUE
+
+ std.type=2
+use.correction.for.imbalance=FALSE
+B=1000
+
+resm<-res<-matrix(NA,ncol=2,nrow=B)
+
+for (ii in 1:B){
+
+dat<-sim.data.cluster(N=N,n=n,betas=betas,norm.eps=norm.eps,var.eps=var.eps,shape=shape,scale=scale,norm.re.intercept=norm.re.intercept,var.re.intercept=var.re.intercept,shape.re.intercept=shape.re.intercept,
+scale.re.intercept=scale.re.intercept,sim.re.slope=sim.re.slope,
+norm.re.slope=norm.re.slope,var.re.slope=var.re.slope,shape.re.slope=shape.re.slope,scale.re.slope=scale.re.slope,sim.x2.qdr=sim.x2.qdr,b.qdr=b.qdr)
+
+
+
+if (fit.re.slope==TRUE) fit<-lme(y~x1+x2,random=~x1|id,data=dat,method="REML",control=lmeControl( returnObject = TRUE)) else fit<-lme(y~x1+x2,random=~1|id,data=dat,method="REML",control=lmeControl( returnObject = TRUE))
+
+
+gof.f<-gof.lmm.O.test.norefit(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,type="sign.flip",M=100,verbose=FALSE)
+
+plot(gof.f)
+res[ii,]<-summary(gof.f)[,2]
+print(ii)
+
+}
+
+res.s<-res
+
+par(mfrow=c(1,2))
+for ( i in 1:2) hist(res[,i])
+
+###old part of the code, could be used for debugging
+
+ id<-fit$data[,names(formula(fit$modelStruct$reStr))]
+
+resP<-residuals(fit, level = 0  )
+resI<-residuals(fit, level = 1  )
+
+N<-length(unique(id))
+n<-table(id)
+
+x<-model.matrix(fit, data=fit$data   )
+b<-matrix(c(t(as.matrix(ranef(fit)))),ncol=1)
+
+
+ZZ<- model.matrix(formula(fit$modelStruct$reStr)[[1]],data=fit$data)
+
+D<-getVarCov(fit)
+vc<-VarCorr(fit)
+sigma.est<-as.numeric(vc[nrow(vc),1])
+
+beta.f<-fixef(fit)
+
+V<-list()
+V.i<-list()
+Z<-list()
+
+H<-matrix(0,ncol=ncol(x),nrow=ncol(x))
+for (gg in 1:N){
+if (ncol(ZZ)==1) Z[[gg]]<-matrix(ZZ[id==gg,],ncol=1) else Z[[gg]]<-ZZ[id==gg,]
+if (n[gg]==1) Z[[gg]]<-matrix(Z[[gg]],nrow=1)
+I<-diag(rep(1),n[[gg]])
+V[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]])+sigma.est*I
+V.i[[gg]]<-V[[gg]]%^%(-1)
+if (n[gg]!=1) H<-H+t(x[id==gg,])%*%V.i[[gg]]%*%x[id==gg,] else H<-H+matrix(x[id==gg,],ncol=1)%*%V.i[[gg]]%*%x[id==gg,]
+}
+
+H.i<-solve(H)
+
+
+ncum<-c(0,cumsum(n))
+Vm<- matrix(0,sum(n),sum(n))
+for (gg in 1:N){
+idr<-idc<- seq(from=1+ncum[gg],to=ncum[gg+1],by=1)
+Vm[idr,idc]<-V[[gg]]
+}
+
+Vmi<-solve(Vm)
+
+k<-ncol(D)
+Zm<-matrix(0,sum(n),N*k)
+
+for (gg in 1:N){
+idr <- seq(from=1+ncum[gg],to=ncum[gg+1],by=1)
+idc<-seq(from= 1+k*(gg-1),to= gg*k  , by=1 )
+Zm[idr,idc]<-Z[[gg]]
+}
+
+
+
+IN<-matrix(0,sum(n),sum(n))
+diag(IN)<-1
+
+p1<-(Vm-x%*%H.i%*%t(x))%*%(IN- sigma.est*Vmi )
+Am<-sigma.est*Vmi%*%p1
+Bm<-(IN- sigma.est*Vmi )%*%p1
+
+In<-matrix(0,ncol=N,nrow=N)
+diag(In)<-1
+J<-sigma.est*Vmi-Am%*%ginv(Bm)%*%Zm%*%(kronecker(In,D))%*%t(Zm)%*%Vmi
+
+
+resT<-J%*%resP
+res.i.c<-resT
+
+
+
+  V.ii.inv<-list()
+  V.ii<-list()
+  S.i<-list()
+
+
+  respermute<-NA
+  resIst<-NA
+  resPst<-NA
+  for (gg in 1:N){
+    I<-diag(rep(1,n[gg]))
+    PI<-I
+    diag(PI)<-rnorm(n[gg])
+    V.ii.inv[[gg]]<-V[[gg]]%^%(-0.5)
+    V.ii[[gg]]<-V[[gg]]%^%(0.5)
+
+    resPMp<-matrix(resP[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMp2<-V.ii[[gg]]%*%PI%*%V.ii.inv[[gg]]%*%resPMp
+
+    respermute<-c(respermute,resPMp2)
+
+    if (std.type==2) S.i[[gg]]<-V.ii.inv[[gg]] else S.i[[gg]]<-  1/sqrt( sigma.est )*diag(rep(1,n[gg]))
+    if (use.correction.for.imbalance==TRUE) S.i[[gg]]<-S.i[[gg]]/sqrt(n[gg])
+
+    resPMpC<-matrix(res.i.c[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2<-S.i[[gg]]%*%resPMpC
+    resPMpC2<-resPMpC2
+
+    resIst<-c(resIst,resPMpC2)
+
+
+  }
+
+  respermute<-respermute[-1]
+  resIst<-resIst[-1]
+
+  estI<-fitted(fit,level=1)
+  estP<-fitted(fit,level=0)
+
+  orI<-order(estI)
+  orP<-order(estP)
+
+  resoI2<-resIst[orI]
+  t01<- estI
+
+  for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+    ig<-which(round(t01[orI],10)==round(ii,10))
+    resoI2[ig]<-sum(resoI2[ig])/length(ig)
+  }
+
+  WI2<-1/sqrt(N )*cumsum(resoI2)
+WI2m<-WI2mm<-list()
+for (kkkk in 1:nSim){
+M<-rep(rnorm(N),each=n[1])
+eM<-matrix(resP*M,ncol=1)
+
+II<-matrix(0,ncol(x),1)
+for (gg in 1:N){
+II<-II+t(x[id==gg,])%*%V.i[[gg]]%*%matrix(eM[id==gg,],ncol=1)
+
+}
+
+
+
+  respermute<-NA
+
+  for (gg in 1:N){
+    I<-diag(rep(1,n[gg]))
+    PI<-I
+    diag(PI)<-rnorm(n[gg])
+
+    resPMp<-matrix(resP[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMp2<-V.ii[[gg]]%*%PI%*%V.ii.inv[[gg]]%*%resPMp
+
+    respermute<-c(respermute,resPMp2)
+
+
+  }
+
+  respermute<-respermute[-1]
+
+
+IIp<-matrix(0,ncol(x),1)
+for (gg in 1:N){
+IIp<-IIp+t(x[id==gg,])%*%V.i[[gg]]%*%matrix(respermute[id==gg],ncol=1)
+
+}
+ncum<-c(0,cumsum(n))
+Sm<- matrix(0,sum(n),sum(n))
+for (gg in 1:N){
+idr<-idc<- seq(from=1+ncum[gg],to=ncum[gg+1],by=1)
+Sm[idr,idc]<-S.i[[gg]]
+}
+
+EM<-rep(NA,sum(n))
+for (gg in 1:N){
+EM[id==gg]<-eM[id==gg,]-x[id==gg,]%*%H.i%*%II
+}
+EMm<-rep(NA,sum(n))
+for (gg in 1:N){
+EMm[id==gg]<-respermute[id==gg]-x[id==gg,]%*%H.i%*%IIp
+}
+resprocsim<-Sm%*%J%*%EM
+resoI2m<-resprocsim[orI]
+  t01<- estI
+
+  for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+    ig<-which(round(t01[orI],10)==round(ii,10))
+    resoI2m[ig]<-sum(resoI2m[ig])/length(ig)
+  }
+WI2m[[kkkk]]<-1/sqrt(N )*cumsum(resoI2m)
+
+resprocsimm<-Sm%*%J%*%EMm
+resoI2mm<-resprocsimm[orI]
+  t01<- estI
+
+  for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+    ig<-which(round(t01[orI],10)==round(ii,10))
+    resoI2mm[ig]<-sum(resoI2mm[ig])/length(ig)
+  }
+WI2mm[[kkkk]]<-1/sqrt(N )*cumsum(resoI2mm)
+
+}
+
+
+plot(WI2,ylim=c(-3,3),type="l")
+for (kkkk in 1:nSim) lines(WI2m[[kkkk]],col="gray")
+lines(WI2)
+
+plot(WI2,ylim=c(-3,3),type="l")
+for (kkkk in 1:nSim) lines(WI2mm[[kkkk]],col="gray")
+lines(WI2)
+
+
+ res[tttt,]<-c( p.val(  KS(WI2),unlist(lapply(WI2m,KS)) ),
+    p.val(  CvM(WI2),unlist(lapply(WI2m,CvM)) ))
+
+resm[tttt,]<-c( p.val(  KS(WI2),unlist(lapply(WI2mm,KS)) ),
+    p.val(  CvM(WI2),unlist(lapply(WI2mm,CvM)) ))
+
+print(tttt)
+}
+
+
+par(mfrow=c(2,2))
+for ( i in 1:2) { hist(res[,i]) }
+for ( i in 1:2) { hist(resm[,i]) }

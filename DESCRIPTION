@@ -1,0 +1,15 @@
+Package: gofLMM
+Type: Package
+Title: Goodness-of-fit for linear mixed effects model (gofLMM)
+Imports: 
+    nlme,
+    MASS,
+    mvtnorm
+Depends: R (>= 3.4.1), nlme, MASS, mvtnorm
+Version: 1.0.0
+Authors@R: c(person(c("Rok","Blagus"),role=c("aut","cre"),email="rok.blagus@mf.uni-lj.si"))
+Author: Rok Blagus [aut, cre]
+Maintainer: Rok Blagus <rok.blagus@mf.uni-lj.si>
+Description: Performs Goodness-of-fit tests for linear mixed effects model fitted by nlme. Allows for using a different option to obtain p-values.
+License: GPL (>= 2)
+RoxygenNote: 6.1.1

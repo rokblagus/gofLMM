@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "Package: gofLMM\nType: Package\nTitle: Goodness-of-fit for linear mixed effects model (gofLMM)\nImports: \n    nlme,\n    MASS,\n    mvtnorm\nDepends: R (>= 3.4.1), nlme, MASS, mvtnorm\nVersion: 0.0.4\nAuthors@R: c(person(c(\"Rok\",\"Blagus\"),role=c(\"aut\",\"cre\"),email=\"rok.blagus@mf.uni-lj.si\"))\nAuthor: Rok Blagus [aut, cre]\nMaintainer: Rok Blagus <rok.blagus@mf.uni-lj.si>\nDescription: Performs Goodness-of-fit tests for linear mixed effects model fitted by nlme. Allows for using a different option to obtain p-values.\nLicense: GPL (>= 2)\nRoxygenNote: 6.1.0\n",
+    "created" : 1561365666913.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1747878329",
+    "id" : "A84A3CB0",
+    "lastKnownWriteTime" : 1567603182,
+    "last_content_update" : 1567603182167,
+    "path" : "E:/dropbox/Dropbox (MF Uni LJ)/gofLinearMixedModel/package/gofLMM/DESCRIPTION",
+    "project_path" : "DESCRIPTION",
+    "properties" : {
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "dcf"
+}

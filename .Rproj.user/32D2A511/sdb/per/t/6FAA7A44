@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "exportPattern(\"^[[:alpha:]]+\")\nimport(nlme)\nimport(MASS)\nimport(mvtnorm)\nS3method(summary, gofLMM)\nS3method(plot, gofLMM)\nS3method(print, gofLMM)\nexport(gof.lmm)\nexport(summary.gofLMM)\nexport(plot.gofLMM)\nexport(print.gofLMM)",
+    "created" : 1566385568696.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3298377262",
+    "id" : "6FAA7A44",
+    "lastKnownWriteTime" : 1562049627,
+    "last_content_update" : 1562049627,
+    "path" : "E:/dropbox/Dropbox (MF Uni LJ)/gofLinearMixedModel/package/gofLMM/NAMESPACE",
+    "project_path" : "NAMESPACE",
+    "properties" : {
+    },
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_namespace"
+}
