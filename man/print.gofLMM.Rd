@@ -4,12 +4,10 @@
 \alias{print.gofLMM}
 \title{Print Function}
 \usage{
-\method{print}{gofLMM}(x, ...)
+\method{print}{gofLMM}(object)
 }
 \arguments{
-\item{x}{an object of class \code{"gofLMM"}, an object returned by a call to \code{\link{gof.lmm}}}
-
-\item{...}{additional arguments passed to from or to other methods}
+\item{object}{an object of class \code{"gofLMM"}, an object returned by a call to \code{\link{gof.lmm}}}
 }
 \description{
 prints results from a call to \code{gof.lmm}

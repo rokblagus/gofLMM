@@ -4,15 +4,17 @@
 \alias{summary.gofLMM}
 \title{Summary Function}
 \usage{
-\method{summary}{gofLMM}(object, ...)
+\method{summary}{gofLMM}(object)
 }
 \arguments{
 \item{object}{an object of class \code{"gofLMM"}, an object returned by a call to \code{\link{gof.lmm}}}
 
-\item{...}{additional arguments passed to from or to other methods}
+\item{conf.level}{the confidence level, defaults to 0.95}
+
+\item{...}{additional arguments affecting the summary produced.}
 }
 \value{
-a matrix containing KS and CvM test statistics and corresponding \eqn{p}-values for the constructed processes.
+a matrix containing KS and CvM test statistics and corresponding $p$-values for the constructed processes.
 }
 \description{
 makes a summary of a call to \code{gof.lmm}

@@ -5,8 +5,8 @@ Imports:
     nlme,
     MASS,
     mvtnorm
-Depends: R (>= 3.4.0)
-Version: 1.0.0
+Depends: R (>= 3.4.1), nlme, MASS, mvtnorm
+Version: 4.0.0
 Authors@R: c(person(c("Rok","Blagus"),role=c("aut","cre"),email="rok.blagus@mf.uni-lj.si"))
 Author: Rok Blagus [aut, cre]
 Maintainer: Rok Blagus <rok.blagus@mf.uni-lj.si>

@@ -11,24 +11,24 @@ gof.lmm(fit, residuals = c("individual", "cluster"), std.type = c(1,
   verbose = FALSE)
 }
 \arguments{
-\item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Cannot use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!}
+\item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!}
 
-\item{residuals}{Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \emph{individual} and \emph{cluster-speciffic} residuals, respectively.}
+\item{residuals}{Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \textit{individual} and \textit{cluster-speciffic} residuals, respectively.}
 
 \item{std.type}{Type of standardization to be used for the residuals when constructing the process.
-Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.}
+Currently implemeneted options are \code{1} and \code{2} for S_i=\hat\sigma^{-1/2}I_{n_i} and $S_i=\hat{V}_i^{-1/2}$.}
 
-\item{use.correction.for.imbalance}{Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.}
+\item{use.correction.for.imbalance}{Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.}
 
-\item{subset.fix}{Two-sided formula. If nonnull, the process \eqn{W^{F^s}} will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process \eqn{W^{F^s}} is not constructed.}
+\item{subset.fix}{Two-sided formula. If nonnull, the process $W^{F^s}$ will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process $W^{F^s}$ is not constructed.}
 
-\item{type}{How to obtain the processes \eqn{W^m}. Possible values are \code{"simulation"} for the simulation approach, \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach. When using \code{type="permutation"}, sign-flipping will be used by default if not specified otherwise by the argument \code{force.permutation.with.O}.}
+\item{type}{How to obtain the processes $W^m$. Possible values are \code{"simulation"} for the simulation approach, \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach. When using \code{type="permutation"}, sign-flipping will be used by default if not specified otherwise by the argument \code{force.permutation.with.O}.}
 
 \item{M}{Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.}
 
-\item{order.by.original}{Logical. Should the residuals in the the processes \eqn{W^m} be ordered by the original fitted values? Defaults to \code{FALSE}.
+\item{order.by.original}{Logical. Should the residuals in the the processes $W^m$ be ordered by the original fitted values? Defaults to \code{FALSE}.
 Makes sense only for \code{type="sign.flip"} and \code{type="permutation"} since when \code{type="simulation"} the ordering is always based on the original predictions.
-It is programmed such that \eqn{J_i} is reestimated at each iteration \eqn{m}.}
+It is programmed such that J_i is reestimated at each iteration $m$.}
 
 \item{force.permutation.with.O}{Logical. Should the permutations be used also for the O process? Defaults to \code{FALSE}.}
 
@@ -104,22 +104,22 @@ library(nlme)
 data(Orthodont)
 Orthodont$Subject<- rep(1:27,each=4)
 fm1<-lme(distance~age,random=~1|Subject,data=Orthodont,control=lmeControl( returnObject = TRUE),method="REML")
-gof.fm1<-gof.lmm(fm1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=50,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
+gof.fm1<-gof.lmm(fm1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=500,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
 plot.gofLMM(gof.fm1,type=2,subset.M=NULL,xlab="",main="Orthodont, model 1")
 summary.gofLMM(gof.fm1)
 
 fm1.1<-lme(distance~age,random=~age|Subject,data=Orthodont,control=lmeControl( returnObject = TRUE),method="REML")
-gof.fm1.1<-gof.lmm(fm1.1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=50,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
+gof.fm1.1<-gof.lmm(fm1.1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=500,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
 plot.gofLMM(gof.fm1.1 ,type=2,subset.M=NULL,xlab="",main="Orthodont, model 1.1")
 summary.gofLMM(gof.fm1.1)
 
 fm2<-lme(distance~age+Sex,random=~1|Subject,data=Orthodont,control=lmeControl( returnObject = TRUE),method="REML")
-gof.fm2<-gof.lmm(fm2,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=distance~age,type= "sign.flip" ,M=50,order.by.original=FALSE,force.permutation.with=FALSE,verbose=TRUE)
+gof.fm2<-gof.lmm(fm2,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=distance~age,type= "sign.flip" ,M=500,order.by.original=FALSE,force.permutation.with=FALSE,verbose=TRUE)
 plot.gofLMM(gof.fm2,type=2,subset.M=NULL,xlab="",main="Orthodont, model 2")
 summary.gofLMM(gof.fm2)
 
 fm2.1<-lme(distance~age*Sex,random=~1|Subject,data=Orthodont,control=lmeControl( returnObject = TRUE),method="REML")
-gof.fm2.1<-gof.lmm(fm2.1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=50,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
+gof.fm2.1<-gof.lmm(fm2.1,residuals= "individual" ,std.type=2,use.correction.for.imbalance=FALSE,subset.fix=NULL,type= "sign.flip" ,M=500,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=TRUE)
 plot.gofLMM(gof.fm2.1,type=2,subset.M=NULL,xlab="",main="Orthodont, model 2.1")
 summary.gofLMM(gof.fm2.1)
 }

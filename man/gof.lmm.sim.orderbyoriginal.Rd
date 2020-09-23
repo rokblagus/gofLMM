@@ -11,13 +11,11 @@ gof.lmm.sim.orderbyoriginal(fit, std.type = c(1, 2),
 \item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}; ID variable must be numeric and ordered from 1:N !.}
 
 \item{std.type}{Type of standardization to be used for the residuals when constructing the process.
-Currently implemeneted options are \code{1} and \code{2} for \eqn{S_i=\hat\sigma^{-1/2}I_{n_i}} and \eqn{S_i=\hat{V}_i^{-1/2}}.}
+Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.}
 
-\item{use.correction.for.imbalance}{Logical. use \eqn{n_i^{-1/2} S_i} when standardizing the residuals. Defaults to \code{FALSE}.}
+\item{use.correction.for.imbalance}{Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.}
 
 \item{M}{Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.}
-
-\item{verbose}{Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.}
 }
 \value{
 KS and CvM pvalues for Pan, Simulation, sign-flip and permutations.
@@ -26,7 +24,7 @@ KS and CvM pvalues for Pan, Simulation, sign-flip and permutations.
 Goodness-of fit test based on cumulative sum stochastic process. Used for simulations. Returns only KS and CvM p-values for all 4 methods and individual as well as cluster specific residuals. Fs not implemented here.
 }
 \details{
-for sign.flip and permutation the residuals are ordered by the refitted fitted values.
+none.
 }
 \examples{
 # simulate some data:
