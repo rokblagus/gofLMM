@@ -1,0 +1,868 @@
+
+
+
+###Tables and figures for paper
+
+
+ 
+
+setwd("C:\\Users\\rblagus\\Dropbox (MF Uni LJ)/gofLinearMixedModel/BraneClusterOrderByOriginalFinalV2")
+
+##Example I, cluster
+
+
+############normal, size
+
+
+nmi<-c("Cvm.individual","CvM.cluster","KS.individual","KS.cluster")
+
+nma<-c("simulation.Pan, O","simulation.Pan, F","sign-flip, O", "sign-flip, F")
+
+
+res<-matrix(NA,ncol=8,nrow=1)
+
+for (iii in c(1,3)){
+ rej01.m<-rej05.m<-rej001.m<-rej5.m<-rej995.m<-rej90.m<-rej999.m<-c(rep(NA,7))
+
+#pdf(paste("figures/finalExampleICluster",nmi[iii],".pdf",sep=""),height=10,width=15)
+
+#par(mfrow=c(6,6),mar=c(2,4,4,2))
+
+
+ 
+for (N in c(50,75)){
+for (n in c(5,10,20)){
+ 
+
+
+
+nm<-paste(  "results/ClusterN",N,"bl.balanced.n",n,"n.eps.TRUE.p.eps.0.5.n.int.TRUE.p.int.0.25.s.re.s.TRUE.norm.slope.TRUE.0.25.s.x2.q.FALSE..f.r.s.TRUE.M.500",".txt",sep="." )
+
+
+dd<-try(read.table(nm),silent=TRUE)
+
+
+if (class(dd)!="try-error"){
+colnames(dd)<-rep(c("KS.O","CvM.O","KS.F","CvM.F"),2*2)
+
+if (iii==1) dds<-dd[,(1:8)[seq(from=2,by=2,length.out=4)]] #CvM for individual
+if (iii==2) dds<-dd[,(9:16)[seq(from=2,by=2,length.out=4)]] #CvM for cluster
+
+if (iii==3) dds<-dd[,(1:8)[seq(from=1,by=2,length.out=4)]] #KS for individual
+if (iii==4) dds<-dd[,(9:16)[seq(from=1,by=2,length.out=4)]] #KS for cluster
+
+rej0.1<-c(0.1,N,n,apply(dds,2,function(x) mean(x<=0.1) ))
+rej0.01<-c(0.01,N,n,apply(dds,2,function(x) mean(x<=0.01) ))
+rej0.05<-c(0.05,N,n,apply(dds,2,function(x) mean(x<=0.05) ))
+
+rej0.5<-c(0.5,N,n,apply(dds,2,function(x) mean(x<=0.5) ))
+rej0.99<-c(0.99,N,n,apply(dds,2,function(x) mean(x<=0.99) ))
+rej0.95<-c(0.95,N,n,apply(dds,2,function(x) mean(x<=0.95) ))
+rej0.90<-c(0.90,N,n,apply(dds,2,function(x) mean(x<=0.90) ))
+
+
+rej01.m<-rbind(rej01.m,rej0.1)
+rej05.m<-rbind(rej05.m,rej0.05)
+rej001.m<-rbind(rej001.m,rej0.01)
+
+
+rej5.m<-rbind(rej5.m,rej0.5)
+rej995.m<-rbind(rej995.m,rej0.95)
+rej999.m<-rbind(rej999.m,rej0.99)
+rej90.m<-rbind(rej90.m,rej0.90)
+
+
+#for (i in 1:6) {hist(dds[,i],main=paste(nma[i],"\n n=",N,", ni=",n, sep=""),xlab="",freq=FALSE)#; abline(h=1,col="gray")
+#}
+
+}
+
+}}
+
+res<-rbind(res, cbind(iii,rbind(rej01.m[-1,],rej05.m[-1,],rej001.m[-1,],rej5.m[-1,],rej995.m[-1,],rej999.m[-1,],rej90.m[-1,]  ))  )
+}
+
+#dev.off()
+
+ 
+
+res=res[-1,]
+colnames(res) <-c("TS","alpha","N","n",c("Pan:O","Pan:F","SF:O","SP:F"))
+
+
+
+
+library(devtools)
+
+devtools::install_github("matherealize/loopR")
+
+library(reshape2)
+library(loopR)
+#dfs$rrmse<-dfs$rrmse*sqrt(n)/100
+
+res[,c(5:8)]<-res[,5:8]-res[,2]
+
+
+
+data_wide <- as.data.frame(res)
+data_wide$TS<-ifelse(data_wide$TS==1,"CvM","KS")
+
+data_wide2<-data_wide[,c(1:4,5,7)]
+data_wide3<-data_wide[,c(1:4,6,8)]
+names(data_wide2)<-names(data_wide3)<-c(names(data_wide)[1:4],"Pan","SF")
+data_wide4<- rbind(data_wide2,data_wide3) 
+
+data_wide4$TS<-paste(data_wide4$TS,c(rep("O",nrow(data_wide2)),rep("F",nrow(data_wide3))),sep=":")
+#data_wide4$N<-paste("N=",data_wide4$N,sep="")
+ 
+#data_wide4$Method<-paste(data_wide4$TS,data_wide4$Test,sep=":") 
+#data_wide4<-data_wide4[,-c(1,8)]
+#data_wide4<-data_wide4[,c(1,2,3,7,4:6)]
+
+#data_wide4$Method<- factor(data_wide4$Method) 
+
+names(data_wide4)[3:4]<-c("n","ni")
+
+
+lm<-c(0.003,0.006,0.008,0.014,0.008,0.006,0.003)
+df<-data.frame(alpha_labels_=c(0.01,0.05,0.1,0.5,0.9,0.95,0.99),ymin=-lm,ymax=lm)
+txt1<-expression(n[i])
+
+p = nested_loop_plot(resdf = data_wide4, 
+                     x = "ni", steps = "n",
+                     grid_rows = "TS", grid_cols = "alpha", 
+                     steps_y_base = -0.03, steps_y_height = 0.01, 
+                     x_name = txt1, y_name = "Empirical rejection rate - nominal level",
+                     spu_x_shift = 10,
+                     colors = scales::brewer_pal( palette = "Dark2"),
+                     steps_values_annotate = TRUE, steps_annotation_size = 2, 
+                     hline_intercept =  0, 
+                     y_expand_add = c(0.01, NULL),grid_scales="free_y",
+                     post_processing = list(
+ 
+                         # add ribbon via an annotation
+                         add_geom_at_position = list(
+                        	g=geom_rect(mapping=aes(ymin=ymin,ymax=ymax),data=df,
+					xmin=-Inf,xmax=Inf,fill="black",alpha=0.1,linetype="blank",inherit.aes=FALSE)     
+				),
+
+
+                         add_custom_theme = list(
+                             axis.text.x = element_text(angle = 0, 
+                                                        vjust = 0.5, 
+                                                        size = 12) 
+                         )
+                     ))
+print(p)
+#ggsave("../FiguresFinal/exampleI.pdf", width = 10, height = 10, units = "in")
+
+
+###remove alpha 0.5??
+
+data_wide4<-data_wide4[data_wide4$alpha!=0.5,]
+lm<-c(0.003,0.006,0.008,0.008,0.006,0.003)
+df<-data.frame(alpha_labels_=c(0.01,0.05,0.1,0.9,0.95,0.99),ymin=-lm,ymax=lm)
+txt1<-expression(n[i])
+
+p = nested_loop_plot(resdf = data_wide4, 
+                     x = "ni", steps = "n",
+                     grid_rows = "TS", grid_cols = "alpha", 
+                     steps_y_base = -0.03, steps_y_height = 0.01, 
+                     x_name = txt1, y_name = "Empirical rejection rate - nominal level",
+                     spu_x_shift = 10,
+                     colors = scales::brewer_pal( palette = "Dark2"),
+                     steps_values_annotate = TRUE, steps_annotation_size = 2, 
+                     hline_intercept =  0, 
+                     y_expand_add = c(0.01, NULL),grid_scales="free_y",
+                     post_processing = list(
+ 
+                         # add ribbon via an annotation
+                         add_geom_at_position = list(
+                        	g=geom_rect(mapping=aes(ymin=ymin,ymax=ymax),data=df,
+					xmin=-Inf,xmax=Inf,fill="black",alpha=0.1,linetype="blank",inherit.aes=FALSE)     
+				),
+
+
+                         add_custom_theme = list(
+                             axis.text.x = element_text(angle = 0, 
+                                                        vjust = 0.5, 
+                                                        size = 12) 
+                         )
+                     ))
+print(p)
+
+#ggsave("../FiguresFinal/exampleIv2.pdf", width = 10, height = 10, units = "in")
+
+
+
+###final version with no KS and only alpha 0.01, 0.05 and 0.9
+
+data_wide4<-data_wide4[data_wide4$alpha==0.01|data_wide4$alpha==0.05|data_wide4$alpha==0.9,]
+data_wide4<-data_wide4[data_wide4$TS=="CvM:O"|data_wide4$TS=="CvM:F",]
+
+data_wide4$TS<-ifelse(data_wide4$TS=="CvM:O","O","F")
+data_wide4[,5:6]<-data_wide4[,5:6]*100
+names(data_wide4)[1]<-"Process"
+lm<-c(0.003,0.006,0.008)*100
+df<-data.frame(alpha_labels_=c(0.01,0.05,0.9),ymin=-lm,ymax=lm)
+txt1<-expression(n[i])
+
+
+
+p = nested_loop_plot(resdf = data_wide4, 
+                     x = "ni", steps = "n",
+                     grid_rows = "Process", grid_cols = "alpha", 
+                     steps_y_base = -0.02*100, steps_y_height = 0.0025*100, 
+                     x_name = txt1, y_name = "(Empirical rejection rate - nominal level)x100",
+                     spu_x_shift = 10,
+                     colors = scales::brewer_pal( palette = "Dark2"),
+                     steps_values_annotate = TRUE, steps_annotation_size = 3, 
+                     hline_intercept =  0, 
+                     y_expand_add = c(0.005*100, NULL),grid_scales="free_y",
+                      legend_name="Approach",
+                     post_processing = list(
+                       
+                         # add ribbon via an annotation
+                         add_geom_at_position = list(
+                        	g=geom_rect(mapping=aes(ymin=ymin,ymax=ymax),data=df,
+					xmin=-Inf,xmax=Inf,fill="black",alpha=0.1,linetype="blank",inherit.aes=FALSE)     
+				),
+
+
+                         add_custom_theme = list(
+                             axis.text.x = element_text(angle = 0, 
+                                                        vjust = 0.5, 
+                                                        size = 12) 
+                         )
+                     ))
+print(p)
+
+#ggsave("../FiguresFinal/exampleIv2.pdf", width = 9, height = 5.5, units = "in")
+
+ggsave("figures/exampleI_SF.pdf", width = 9, height = 5.5, units = "in")
+
+
+#######non-normal,size
+
+
+ 
+
+
+setwd("C:\\Users\\rblagus\\Dropbox (MF Uni LJ)/gofLinearMixedModel/BraneClusterOrderByOriginalFinalV2")
+
+##Example I, cluster
+
+
+############normal, size
+
+
+nmi<-c("Cvm.individual","CvM.cluster","KS.individual","KS.cluster")
+
+nma<-c("simulation.Pan, O","simulation.Pan, F","sign-flip, O", "sign-flip, F")
+
+
+res<-matrix(NA,ncol=8,nrow=1)
+
+for (iii in c(1,3)){
+  rej01.m<-rej05.m<-rej001.m<-rej5.m<-rej995.m<-rej90.m<-rej999.m<-c(rep(NA,7))
+  
+  #pdf(paste("figures/finalExampleICluster",nmi[iii],".pdf",sep=""),height=10,width=15)
+  
+  #par(mfrow=c(6,6),mar=c(2,4,4,2))
+  
+  
+  
+  for (N in c(50,75)){
+    for (n in c(5,10,20)){
+      
+      
+      
+      
+      nm<-paste(  "results/ClusterN",N,"bl.balanced.n",n,"n.eps.FALSE.p.eps..n.int.FALSE.p.int..s.re.s.TRUE.norm.slope.FALSE.1.2.s.x2.q.FALSE..f.r.s.TRUE.M.500",".txt",sep="." )
+      
+      
+      dd<-try(read.table(nm),silent=TRUE)
+      
+      
+      if (class(dd)!="try-error"){
+        colnames(dd)<-rep(c("KS.O","CvM.O","KS.F","CvM.F"),2*2)
+        
+        if (iii==1) dds<-dd[,(1:8)[seq(from=2,by=2,length.out=4)]] #CvM for individual
+        if (iii==2) dds<-dd[,(9:16)[seq(from=2,by=2,length.out=4)]] #CvM for cluster
+        
+        if (iii==3) dds<-dd[,(1:8)[seq(from=1,by=2,length.out=4)]] #KS for individual
+        if (iii==4) dds<-dd[,(9:16)[seq(from=1,by=2,length.out=4)]] #KS for cluster
+        
+        rej0.1<-c(0.1,N,n,apply(dds,2,function(x) mean(x<=0.1) ))
+        rej0.01<-c(0.01,N,n,apply(dds,2,function(x) mean(x<=0.01) ))
+        rej0.05<-c(0.05,N,n,apply(dds,2,function(x) mean(x<=0.05) ))
+        
+        rej0.5<-c(0.5,N,n,apply(dds,2,function(x) mean(x<=0.5) ))
+        rej0.99<-c(0.99,N,n,apply(dds,2,function(x) mean(x<=0.99) ))
+        rej0.95<-c(0.95,N,n,apply(dds,2,function(x) mean(x<=0.95) ))
+        rej0.90<-c(0.90,N,n,apply(dds,2,function(x) mean(x<=0.90) ))
+        
+        
+        rej01.m<-rbind(rej01.m,rej0.1)
+        rej05.m<-rbind(rej05.m,rej0.05)
+        rej001.m<-rbind(rej001.m,rej0.01)
+        
+        
+        rej5.m<-rbind(rej5.m,rej0.5)
+        rej995.m<-rbind(rej995.m,rej0.95)
+        rej999.m<-rbind(rej999.m,rej0.99)
+        rej90.m<-rbind(rej90.m,rej0.90)
+        
+        
+        #for (i in 1:6) {hist(dds[,i],main=paste(nma[i],"\n n=",N,", ni=",n, sep=""),xlab="",freq=FALSE)#; abline(h=1,col="gray")
+        #}
+        
+      }
+      
+    }}
+  
+  res<-rbind(res, cbind(iii,rbind(rej01.m[-1,],rej05.m[-1,],rej001.m[-1,],rej5.m[-1,],rej995.m[-1,],rej999.m[-1,],rej90.m[-1,]  ))  )
+}
+
+#dev.off()
+
+
+
+res=res[-1,]
+colnames(res) <-c("TS","alpha","N","n",c("Pan:O","Pan:F","SF:O","SP:F"))
+
+
+
+
+library(devtools)
+
+devtools::install_github("matherealize/loopR")
+
+library(reshape2)
+library(loopR)
+#dfs$rrmse<-dfs$rrmse*sqrt(n)/100
+
+res[,c(5:8)]<-res[,5:8]-res[,2]
+
+
+
+data_wide <- as.data.frame(res)
+data_wide$TS<-ifelse(data_wide$TS==1,"CvM","KS")
+
+data_wide2<-data_wide[,c(1:4,5,7)]
+data_wide3<-data_wide[,c(1:4,6,8)]
+names(data_wide2)<-names(data_wide3)<-c(names(data_wide)[1:4],"Pan","SF")
+data_wide4<- rbind(data_wide2,data_wide3) 
+
+data_wide4$TS<-paste(data_wide4$TS,c(rep("O",nrow(data_wide2)),rep("F",nrow(data_wide3))),sep=":")
+#data_wide4$N<-paste("N=",data_wide4$N,sep="")
+
+#data_wide4$Method<-paste(data_wide4$TS,data_wide4$Test,sep=":") 
+#data_wide4<-data_wide4[,-c(1,8)]
+#data_wide4<-data_wide4[,c(1,2,3,7,4:6)]
+
+#data_wide4$Method<- factor(data_wide4$Method) 
+
+names(data_wide4)[3:4]<-c("n","ni")
+
+
+lm<-c(0.003,0.006,0.008,0.014,0.008,0.006,0.003)
+df<-data.frame(alpha_labels_=c(0.01,0.05,0.1,0.5,0.9,0.95,0.99),ymin=-lm,ymax=lm)
+txt1<-expression(n[i])
+
+p = nested_loop_plot(resdf = data_wide4, 
+                     x = "ni", steps = "n",
+                     grid_rows = "TS", grid_cols = "alpha", 
+                     steps_y_base = -0.03, steps_y_height = 0.01, 
+                     x_name = txt1, y_name = "Empirical rejection rate - nominal level",
+                     spu_x_shift = 10,
+                     colors = scales::brewer_pal( palette = "Dark2"),
+                     steps_values_annotate = TRUE, steps_annotation_size = 2, 
+                     hline_intercept =  0, 
+                     y_expand_add = c(0.01, NULL),grid_scales="free_y",
+                     post_processing = list(
+                       
+                       # add ribbon via an annotation
+                       add_geom_at_position = list(
+                         g=geom_rect(mapping=aes(ymin=ymin,ymax=ymax),data=df,
+                                     xmin=-Inf,xmax=Inf,fill="black",alpha=0.1,linetype="blank",inherit.aes=FALSE)     
+                       ),
+                       
+                       
+                       add_custom_theme = list(
+                         axis.text.x = element_text(angle = 0, 
+                                                    vjust = 0.5, 
+                                                    size = 12) 
+                       )
+                     ))
+print(p)
+ 
+###remove alpha 0.5??
+
+data_wide4<-data_wide4[data_wide4$alpha!=0.5,]
+lm<-c(0.003,0.006,0.008,0.008,0.006,0.003)
+df<-data.frame(alpha_labels_=c(0.01,0.05,0.1,0.9,0.95,0.99),ymin=-lm,ymax=lm)
+txt1<-expression(n[i])
+
+p = nested_loop_plot(resdf = data_wide4, 
+                     x = "ni", steps = "n",
+                     grid_rows = "TS", grid_cols = "alpha", 
+                     steps_y_base = -0.03, steps_y_height = 0.01, 
+                     x_name = txt1, y_name = "Empirical rejection rate - nominal level",
+                     spu_x_shift = 10,
+                     colors = scales::brewer_pal( palette = "Dark2"),
+                     steps_values_annotate = TRUE, steps_annotation_size = 2, 
+                     hline_intercept =  0, 
+                     y_expand_add = c(0.01, NULL),grid_scales="free_y",
+                     post_processing = list(
+                       
+                       # add ribbon via an annotation
+                       add_geom_at_position = list(
+                         g=geom_rect(mapping=aes(ymin=ymin,ymax=ymax),data=df,
+                                     xmin=-Inf,xmax=Inf,fill="black",alpha=0.1,linetype="blank",inherit.aes=FALSE)     
+                       ),
+                       
+                       
+                       add_custom_theme = list(
+                         axis.text.x = element_text(angle = 0, 
+                                                    vjust = 0.5, 
+                                                    size = 12) 
+                       )
+                     ))
+print(p)
+
+ 
+
+
+###final version with no KS and only alpha 0.01, 0.05 and 0.9
+
+data_wide4<-data_wide4[data_wide4$alpha==0.01|data_wide4$alpha==0.05|data_wide4$alpha==0.9,]
+data_wide4<-data_wide4[data_wide4$TS=="CvM:O"|data_wide4$TS=="CvM:F",]
+
+data_wide4$TS<-ifelse(data_wide4$TS=="CvM:O","O","F")
+data_wide4[,5:6]<-data_wide4[,5:6]*100
+names(data_wide4)[1]<-"Process"
+lm<-c(0.003,0.006,0.008)*100
+df<-data.frame(alpha_labels_=c(0.01,0.05,0.9),ymin=-lm,ymax=lm)
+txt1<-expression(n[i])
+
+
+
+p = nested_loop_plot(resdf = data_wide4, 
+                     x = "ni", steps = "n",
+                     grid_rows = "Process", grid_cols = "alpha", 
+                     steps_y_base = -0.02*100, steps_y_height = 0.0025*100, 
+                     x_name = txt1, y_name = "(Empirical rejection rate - nominal level)x100",
+                     spu_x_shift = 10,
+                     colors = scales::brewer_pal( palette = "Dark2"),
+                     steps_values_annotate = TRUE, steps_annotation_size = 3, 
+                     hline_intercept =  0, 
+                     y_expand_add = c(0.005*100, NULL),grid_scales="free_y",
+                     legend_name="Approach",
+                     post_processing = list(
+                       
+                       # add ribbon via an annotation
+                       add_geom_at_position = list(
+                         g=geom_rect(mapping=aes(ymin=ymin,ymax=ymax),data=df,
+                                     xmin=-Inf,xmax=Inf,fill="black",alpha=0.1,linetype="blank",inherit.aes=FALSE)     
+                       ),
+                       
+                       
+                       add_custom_theme = list(
+                         axis.text.x = element_text(angle = 0, 
+                                                    vjust = 0.5, 
+                                                    size = 12) 
+                       )
+                     ))
+print(p)
+
+ 
+
+
+ggsave("figures/exampleI_SF_nonnormal.pdf", width = 9, height = 5.5, units = "in")
+
+ 
+
+
+
+
+
+
+
+
+#########Example II, cluster
+
+
+setwd("C:\\Users\\rblagus\\Dropbox (MF Uni LJ)/gofLinearMixedModel/BraneClusterOrderByOriginalFinalV2")
+
+ 
+
+nmi<-c("Cvm.individual","CvM.cluster","KS.individual","KS.cluster")
+
+nma<-c("simulation.Pan, O","simulation.Pan, F","sign-flip, O", "sign-flip, F")
+
+
+res<-matrix(NA,ncol=8,nrow=1)
+ 
+#iii=1
+
+#pdf(paste("figures/finalExampleIICluster",nmi[iii],".pdf",sep=""),height=10,width=15)
+
+#par(mfrow=c(6,6),mar=c(2,4,4,2))
+
+
+for (iii in c(1,3)){
+rej01.m<-rej05.m<-rej001.m<-c(rep(NA,7))
+       
+for (N in c(50,75)){
+for (sg2 in c(0.5,1,1.5)){
+ 
+
+
+
+nm<-paste(  "results/ClusterN",N,"bl.balanced.n",10,"n.eps.TRUE.p.eps.0.5.n.int.TRUE.p.int.0.25.s.re.s.TRUE.norm.slope.TRUE",sg2,"s.x2.q.FALSE..f.r.s.FALSE.M.500",".txt",sep="." )
+
+
+dd<-try(read.table(nm),silent=TRUE)
+
+
+if (class(dd)!="try-error"){
+colnames(dd)<-rep(c("KS.O","CvM.O","KS.F","CvM.F"),2*2)
+
+if (iii==1) dds<-dd[,(1:8)[seq(from=2,by=2,length.out=4)]] #CvM for individual
+if (iii==2) dds<-dd[,(9:16)[seq(from=2,by=2,length.out=4)]] #CvM for cluster
+
+if (iii==3) dds<-dd[,(1:8)[seq(from=1,by=2,length.out=4)]] #KS for individual
+if (iii==4) dds<-dd[,(9:16)[seq(from=1,by=2,length.out=4)]] #KS for cluster
+
+rej0.1<-c(0.1,N,sg2,apply(dds,2,function(x) mean(x<=0.1) ))
+rej0.01<-c(0.01,N,sg2,apply(dds,2,function(x) mean(x<=0.01) ))
+rej0.05<-c(0.05,N,sg2,apply(dds,2,function(x) mean(x<=0.05) ))
+
+
+
+rej01.m<-rbind(rej01.m,rej0.1)
+rej05.m<-rbind(rej05.m,rej0.05)
+rej001.m<-rbind(rej001.m,rej0.01)
+
+#for (i in 1:6) hist(dds[,i],main=paste(nma[i],"\n N=",N,", sg2=",sg2 ,sep=""),xlab="",freq=FALSE)
+}
+
+}}
+
+res<-rbind(res, cbind(iii,rbind(rej01.m[-1,],rej05.m[-1,],rej001.m[-1,]  ))  )
+}
+
+
+
+ 
+
+
+
+res=res[-1,]
+colnames(res) <-c("TS","alpha","N","sg2",c("Pan:O","Pan:F", "SF:O","SP:F" ))
+  
+
+
+
+library(devtools)
+
+devtools::install_github("matherealize/loopR")
+
+library(reshape2)
+library(loopR)
+#dfs$rrmse<-dfs$rrmse*sqrt(n)/100
+
+res[,c(5:8)]<-res[,5:8]
+
+
+
+data_wide <- as.data.frame(res)
+data_wide$TS<-ifelse(data_wide$TS==1,"CvM","KS")
+
+data_wide2<-data_wide[,c(1:4,5,7)]
+data_wide3<-data_wide[,c(1:4,6,8)]
+names(data_wide2)<-names(data_wide3)<-c(names(data_wide)[1:4],"Pan","SF")
+data_wide4<- rbind(data_wide2,data_wide3) 
+
+data_wide4$TS<-paste(data_wide4$TS,c(rep("O",nrow(data_wide2)),rep("F",nrow(data_wide3))),sep=":")
+#data_wide4$N<-paste("N=",data_wide4$N,sep="")
+ 
+#data_wide4$Method<-paste(data_wide4$TS,data_wide4$Test,sep=":") 
+#data_wide4<-data_wide4[,-c(1,8)]
+#data_wide4<-data_wide4[,c(1,2,3,7,4:6)]
+
+#data_wide4$Method<- factor(data_wide4$Method) 
+
+lm<-c(0.003,0.006,0.008)
+alph<-c(0.01,0.05,0.1)
+df<-data.frame(alpha_labels_=c(0.01,0.05,0.1),ymin=alph-lm,ymax=alph+lm)
+
+names(data_wide4)[3]<-"n"
+
+txt1<-expression(sigma[paste("b,1",sep="")]^2)
+
+p = nested_loop_plot(resdf = data_wide4, 
+                     x = "sg2", steps = "n",
+                     grid_rows = "TS", grid_cols = "alpha", 
+                     steps_y_base = -0.05, steps_y_height = 0.04, 
+                     x_name = txt1, y_name = "Empirical rejection rate",
+                     spu_x_shift = 0.5,
+                     colors = scales::brewer_pal(palette = "Dark2"),
+                     steps_values_annotate = TRUE, steps_annotation_size = 2, 
+                     #hline_intercept =  0, 
+                     y_expand_add = c(0.05, NULL),grid_scales="free_y",
+                     post_processing = list(
+ 
+                         # add ribbon via an annotation
+                         add_geom_at_position = list(
+                        	g=geom_rect(mapping=aes(ymin=ymin,ymax=ymax),data=df,
+					xmin=-Inf,xmax=Inf,fill="black",alpha=0.1,linetype="blank",inherit.aes=FALSE)     
+				),
+
+
+                         add_custom_theme = list(
+                             axis.text.x = element_text(angle = 0, 
+                                                        vjust = 0.5, 
+                                                        size = 10) 
+                         )
+                     ))
+print(p)
+
+ 
+####final version
+
+data_wide4<-data_wide4[data_wide4$TS=="CvM:O"|data_wide4$TS=="CvM:F",]
+names(data_wide4)[1]<-"Process"
+data_wide4$Process<-ifelse(data_wide4$Process=="CvM:O","O","F")
+lm<-c(0.003,0.006,0.008)
+alph<-c(0.01,0.05,0.1)
+df<-data.frame(alpha_labels_=c(0.01,0.05,0.1),ymin=alph-lm,ymax=alph+lm)
+
+names(data_wide4)[3]<-"n"
+
+txt1<-expression(sigma[paste("b,1",sep="")]^2)
+
+p = nested_loop_plot(resdf = data_wide4, 
+                     x = "sg2", steps = "n",
+                     grid_rows = "Process", grid_cols = "alpha", 
+                     steps_y_base = -0.02, steps_y_height = 0.01, 
+                     x_name = txt1, y_name = "Empirical rejection rate",
+                     spu_x_shift = 0.5,
+                     colors = scales::brewer_pal(palette = "Dark2"),
+                     steps_values_annotate = TRUE, steps_annotation_size = 3, 
+                     #hline_intercept =  0, 
+                     y_expand_add = c(0.03, NULL),grid_scales="free_y",
+ legend_name="Approach",
+                     post_processing = list(
+ 
+                         # add ribbon via an annotation
+                         add_geom_at_position = list(
+                        	g=geom_rect(mapping=aes(ymin=ymin,ymax=ymax),data=df,
+					xmin=-Inf,xmax=Inf,fill="black",alpha=0.1,linetype="blank",inherit.aes=FALSE)     
+				),
+
+
+                         add_custom_theme = list(
+                             axis.text.x = element_text(angle = 0, 
+                                                        vjust = 0.5, 
+                                                        size = 10) 
+                         )
+                     ))
+print(p)
+
+ 
+ggsave("figures/exampleII_SF.pdf", width = 9, height = 5.5, units = "in")
+
+
+
+#########Example III, cluster
+
+
+setwd("C:\\Users\\rblagus\\Dropbox (MF Uni LJ)/gofLinearMixedModel/BraneClusterOrderByOriginalFinalV2")
+
+ 
+
+nmi<-c("Cvm.individual","CvM.cluster","KS.individual","KS.cluster")
+
+nma<-c("simulation.Pan, O","simulation.Pan, F","sign-flip, O", "sign-flip, F")
+
+
+res<-matrix(NA,ncol=8,nrow=1)
+ 
+#iii=1
+
+#pdf(paste("figures/finalExampleIICluster",nmi[iii],".pdf",sep=""),height=10,width=15)
+
+#par(mfrow=c(6,6),mar=c(2,4,4,2))
+
+
+for (iii in c(1,3)){
+rej01.m<-rej05.m<-rej001.m<-c(rep(NA,7))
+
+
+ 
+for (N in c(50,75)){
+for (bt in c(0.5,1,1.5)){
+ 
+
+
+
+nm<-paste(  "results/ClusterN",N,"bl.balanced.n",10,"n.eps.TRUE.p.eps.0.5.n.int.TRUE.p.int.0.25.s.re.s.TRUE.norm.slope.TRUE",0.25,"s.x2.q.TRUE",bt,"f.r.s.TRUE.M.500",".txt",sep="." )
+
+
+dd<-try(read.table(nm),silent=TRUE)
+
+
+if (class(dd)!="try-error"){
+colnames(dd)<-rep(c("KS.O","CvM.O","KS.F","CvM.F"),2*2)
+
+if (iii==1) dds<-dd[,(1:8)[seq(from=2,by=2,length.out=4)]] #CvM for individual
+if (iii==2) dds<-dd[,(9:16)[seq(from=2,by=2,length.out=4)]] #CvM for cluster
+
+if (iii==3) dds<-dd[,(1:8)[seq(from=1,by=2,length.out=4)]] #KS for individual
+if (iii==4) dds<-dd[,(9:16)[seq(from=1,by=2,length.out=4)]] #KS for cluster
+
+rej0.1<-c(0.1,N,bt,apply(dds,2,function(x) mean(x<=0.1) ))
+rej0.01<-c(0.01,N,bt,apply(dds,2,function(x) mean(x<=0.01) ))
+rej0.05<-c(0.05,N,bt,apply(dds,2,function(x) mean(x<=0.05) ))
+
+
+
+rej01.m<-rbind(rej01.m,rej0.1)
+rej05.m<-rbind(rej05.m,rej0.05)
+rej001.m<-rbind(rej001.m,rej0.01)
+
+#for (i in 1:6) hist(dds[,i],main=paste(nma[i],"\n N=",N,", sg2=",sg2 ,sep=""),xlab="",freq=FALSE)
+}
+
+}}
+
+res<-rbind(res, cbind(iii,rbind(rej01.m[-1,],rej05.m[-1,],rej001.m[-1,]  ))  )
+}
+
+
+
+ 
+
+
+
+res=res[-1,]
+colnames(res) <-c("TS","alpha","N","bt",c("Pan:O","Pan:F","SF:O","SP:F"))
+ 
+
+
+
+library(devtools)
+
+devtools::install_github("matherealize/loopR")
+
+library(reshape2)
+library(loopR)
+#dfs$rrmse<-dfs$rrmse*sqrt(n)/100
+
+res[,c(5:8)]<-res[,5:8]
+
+
+
+data_wide <- as.data.frame(res)
+data_wide$TS<-ifelse(data_wide$TS==1,"CvM","KS")
+
+data_wide2<-data_wide[,c(1:4,5,7)]
+data_wide3<-data_wide[,c(1:4,6,8)]
+names(data_wide2)<-names(data_wide3)<-c(names(data_wide)[1:4],"Pan","SF")
+data_wide4<- rbind(data_wide2,data_wide3) 
+
+data_wide4$TS<-paste(data_wide4$TS,c(rep("O",nrow(data_wide2)),rep("F",nrow(data_wide3))),sep=":")
+#data_wide4$N<-paste("N=",data_wide4$N,sep="")
+ 
+#data_wide4$Method<-paste(data_wide4$TS,data_wide4$Test,sep=":") 
+#data_wide4<-data_wide4[,-c(1,8)]
+#data_wide4<-data_wide4[,c(1,2,3,7,4:6)]
+
+#data_wide4$Method<- factor(data_wide4$Method) 
+
+lm<-c(0.003,0.006,0.008)
+alph<-c(0.01,0.05,0.1)
+df<-data.frame(alpha_labels_=c(0.01,0.05,0.1),ymin=alph-lm,ymax=alph+lm)
+
+txt1<-expression(beta[3])
+names(data_wide4)[3]<-"n"
+
+p = nested_loop_plot(resdf = data_wide4, 
+                     x = "bt", steps = "n",
+                     grid_rows = "TS", grid_cols = "alpha", 
+                     steps_y_base = -0.10, steps_y_height = 0.05, 
+                     x_name = txt1, y_name = "Empirical rejection rate",
+                     spu_x_shift = 0.5,
+                     colors = scales::brewer_pal(palette = "Dark2"),
+                     steps_values_annotate = TRUE, steps_annotation_size = 2, 
+                     #hline_intercept =  0, 
+                     y_expand_add = c(0.05, NULL),grid_scales="free_y",
+ legend_name="Approach",
+                     post_processing = list(
+ 
+                         # add ribbon via an annotation
+                         add_geom_at_position = list(
+                        	g=geom_rect(mapping=aes(ymin=ymin,ymax=ymax),data=df,
+					xmin=-Inf,xmax=Inf,fill="black",alpha=0.1,linetype="blank",inherit.aes=FALSE)     
+				),
+
+
+                         add_custom_theme = list(
+                             axis.text.x = element_text(angle = 0, 
+                                                        vjust = 0.5, 
+                                                        size = 10) 
+                         )
+                     ))
+print(p)
+
+
+
+
+
+
+####final
+
+
+data_wide4<-data_wide4[data_wide4$TS=="CvM:O"|data_wide4$TS=="CvM:F",]
+names(data_wide4)[1]<-"Process"
+data_wide4$Process<-ifelse(data_wide4$Process=="CvM:O","O","F")
+lm<-c(0.003,0.006,0.008)
+alph<-c(0.01,0.05,0.1)
+df<-data.frame(alpha_labels_=c(0.01,0.05,0.1),ymin=alph-lm,ymax=alph+lm)
+
+
+txt1<-expression(beta[3])
+names(data_wide4)[3]<-"n"
+
+p = nested_loop_plot(resdf = data_wide4, 
+                     x = "bt", steps = "n",
+                     grid_rows = "Process", grid_cols = "alpha", 
+                     steps_y_base = -0.05, steps_y_height = 0.02, 
+                     x_name = txt1, y_name = "Empirical rejection rate",
+                     spu_x_shift = 0.5,
+                     colors = scales::brewer_pal(palette = "Dark2"),
+                     steps_values_annotate = TRUE, steps_annotation_size = 3, 
+                     #hline_intercept =  0, 
+                     y_expand_add = c(0.03, NULL),grid_scales="free_y",
+                      legend_name="Approach",
+post_processing = list(
+ 
+                         # add ribbon via an annotation
+                         add_geom_at_position = list(
+                        	g=geom_rect(mapping=aes(ymin=ymin,ymax=ymax),data=df,
+					xmin=-Inf,xmax=Inf,fill="black",alpha=0.1,linetype="blank",inherit.aes=FALSE)     
+				),
+
+
+                         add_custom_theme = list(
+                             axis.text.x = element_text(angle = 0, 
+                                                        vjust = 0.5, 
+                                                        size = 10) 
+                         )
+                     ))
+print(p)
+ggsave("figures/exampleIII_SF.pdf", width = 9, height = 5.5, units = "in")
+
+

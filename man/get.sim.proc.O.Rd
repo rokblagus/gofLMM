@@ -6,7 +6,7 @@
 \usage{
 get.sim.proc.O(fit, residuals, std.type, use.correction.for.imbalance,
   order.by.original, or.original.fitted.I, original.fitted.I, n, N, x, ZZ,
-  id)
+  id, transform)
 }
 \description{
 Internal function

@@ -1,0 +1,195 @@
+library(MASS)
+
+
+library(gofLMM)
+library(nlme)
+
+##sim. data function. allows for a single random effect where Z can either be column of ones or (and) one of the fixed effects covariates (in this case the D will be assumed diagonal). Desing can be unlabanced. Both error sources can be non-normal.
+##this is only for longitudinal for a typical randomized study.
+
+
+sim.data.cluster<-function(N,n,betas, norm.eps,var.eps=NULL,shape=NULL,scale=NULL,norm.re.intercept,var.re.intercept=NULL,shape.re.intercept=NULL,scale.re.intercept=NULL,sim.re.slope,
+norm.re.slope=NULL,var.re.slope=NULL,shape.re.slope=NULL,scale.re.slope=NULL,sim.x2.qdr=FALSE,b.qdr=NULL){
+
+
+
+yy<-NA
+
+id<-NA
+x1<-NA
+x2<-NA
+for (gg in 1:N){
+
+  id<-c(id,rep(gg,each=n[gg]))
+  x11<-runif(n[gg])
+  x1<-c(x1,x11)
+
+  x22<-runif(n[gg])
+  x2<-c(x2,x22)
+  if (norm.re.intercept==TRUE) re.int<-rnorm(1,sd=sqrt(var.re.intercept)) else re.int<-rgamma(1,shape=shape.re.intercept,scale=scale.re.intercept)-shape.re.intercept*scale.re.intercept
+
+  b<-rep(re.int,each=n[gg])
+
+
+
+  if (norm.eps==TRUE) eps<-rnorm(n[gg],sd=sqrt(var.eps)) else eps<-rgamma(n[gg],shape=shape,scale=scale)-shape*scale
+
+  if (sim.re.slope==TRUE) {
+  if (norm.re.slope==TRUE) re.slope<-rnorm(1,sd=sqrt(var.re.slope)) else re.slope<-rgamma(1,shape=shape.re.slope,scale=scale.re.slope)-shape.re.slope*scale.re.slope
+
+  b2<-rep(re.slope,each=n[gg])
+
+   if (sim.x2.qdr==FALSE)   y<-betas[1]+betas[2]*x11+betas[3]*x22+b+b2*x11+eps  else y<-betas[1]+betas[2]*x11+betas[3]*x22+b+b2*x11+eps+ b.qdr*x11**2
+  } else {
+     if (sim.x2.qdr==FALSE) y<-betas[1]+betas[2]*x11+betas[3]*x22+b+eps   else y<-betas[1]+betas[2]*x11+betas[3]*x22+b+eps+ b.qdr*x11**2
+
+  }
+  yy<-c(yy,y)
+
+}
+yy<-yy[-1]
+x2<-x2[-1]
+x1<-x1[-1]
+id<-id[-1]
+df<-data.frame(id=id,y=yy,x1=x1,x2=x2)
+
+df
+
+}
+
+ii=1
+N=50
+n=rep(5,N)
+betas=c(-1,1,1)
+x.prob=0.4
+norm.eps=TRUE
+var.eps=1
+shape=NULL
+scale=NULL
+norm.re.intercept=TRUE
+var.re.intercept=1
+shape.re.intercept=NULL
+scale.re.intercept=NULL
+sim.re.slope=FALSE
+norm.re.slope=TRUE
+var.re.slope=1
+shape.re.slope=NULL
+scale.re.slope=NULL
+sim.x2.qdr=TRUE
+b.qdr=1
+fit.re.slope=FALSE
+
+
+fun<-function(ii,N,n,betas=c(-1,0.25,0.5),norm.eps,var.eps=NULL,shape=NULL,scale=NULL,norm.re.intercept,var.re.intercept=NULL,shape.re.intercept=NULL,
+scale.re.intercept=NULL,sim.re.slope=TRUE,
+norm.re.slope,var.re.slope=NULL,shape.re.slope=NULL,scale.re.slope=NULL,sim.x2.qdr=FALSE,b.qdr=NULL,fit.re.slope=TRUE,M=500){
+
+
+
+dat<-sim.data.cluster(N=N,n=n,betas=betas,norm.eps=norm.eps,var.eps=var.eps,shape=shape,scale=scale,norm.re.intercept=norm.re.intercept,var.re.intercept=var.re.intercept,shape.re.intercept=shape.re.intercept,
+scale.re.intercept=scale.re.intercept,sim.re.slope=sim.re.slope,
+norm.re.slope=norm.re.slope,var.re.slope=var.re.slope,shape.re.slope=shape.re.slope,scale.re.slope=scale.re.slope,sim.x2.qdr=sim.x2.qdr,b.qdr=b.qdr)
+
+
+
+if (fit.re.slope==TRUE) fit<-lme(y~x1+x2,random=~x1|id,data=dat,method="REML",control=lmeControl( returnObject = TRUE)) else fit<-lme(y~x1+x2,random=~1|id,data=dat,method="REML",control=lmeControl( returnObject = TRUE))
+
+
+fit.gof.N.ind<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =TRUE,use.sigmoid = FALSE)
+fit.gof.N.l1<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =TRUE,use.sigmoid = TRUE,lambda=0.5)
+fit.gof.N.l2<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =TRUE,use.sigmoid = TRUE,lambda=1)
+fit.gof.N.l3<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =TRUE,use.sigmoid = TRUE,lambda=2)
+fit.gof.N.l4<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =TRUE,use.sigmoid = TRUE,lambda=5)
+fit.gof.N.l5<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =TRUE,use.sigmoid = TRUE,lambda=1e12)
+
+fit.gof.sf.ind<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = FALSE)
+fit.gof.sf.l1<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = TRUE,lambda=0.5)
+fit.gof.sf.l2<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = TRUE,lambda=1)
+fit.gof.sf.l3<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = TRUE,lambda=2)
+fit.gof.sf.l4<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = TRUE,lambda=5)
+fit.gof.sf.l5<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = TRUE,lambda=1e12)
+
+
+fit.gof.mm.ind<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = FALSE,use.mammen =TRUE)
+fit.gof.mm.l1<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = TRUE,lambda=0.5,use.mammen =TRUE)
+fit.gof.mm.l2<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = TRUE,lambda=1,use.mammen =TRUE)
+fit.gof.mm.l3<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = TRUE,lambda=2,use.mammen =TRUE)
+fit.gof.mm.l4<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = TRUE,lambda=5,use.mammen =TRUE)
+fit.gof.mm.l5<-gof.lmm(fit,residuals="individual",std.type=2,use.correction.for.imbalance=FALSE,M=M,verbose=FALSE,type="simulation",flip.cluster = TRUE,use.normal =FALSE,use.sigmoid = TRUE,lambda=1e12,use.mammen =TRUE)
+
+
+res.ind<-c(summary(fit.gof.N.ind)[,2],summary(fit.gof.sf.ind)[,2],summary(fit.gof.mm.ind)[,2])
+res.l1<-c(summary(fit.gof.N.l1)[,2],summary(fit.gof.sf.l1)[,2],summary(fit.gof.mm.l1)[,2])
+res.l2<-c(summary(fit.gof.N.l2)[,2],summary(fit.gof.sf.l2)[,2],summary(fit.gof.mm.l2)[,2])
+res.l3<-c(summary(fit.gof.N.l3)[,2],summary(fit.gof.sf.l3)[,2],summary(fit.gof.mm.l3)[,2])
+res.l4<-c(summary(fit.gof.N.l4)[,2],summary(fit.gof.sf.l4)[,2],summary(fit.gof.mm.l4)[,2])
+res.l5<-c(summary(fit.gof.N.l5)[,2],summary(fit.gof.sf.l5)[,2],summary(fit.gof.mm.l5)[,2])
+
+
+
+
+#res<-c(fit.gof$results.ind)
+
+
+if (length(unique(n))==1) bal="balanced" else bal="imbalanced"
+ps.eps<-var.eps
+if (norm.eps==FALSE) ps<-paste(shape,scale,sep=".")
+
+ps.int<-var.re.intercept
+if (norm.re.intercept==FALSE) ps<-paste(shape.re.intercept,scale.re.intercept,sep=".")
+
+
+
+if (sim.re.slope==FALSE) ps.slope<-"" else {
+
+paste("norm.slope",norm.re.slope,sep=".")
+if (norm.re.slope==TRUE) ps.slope<-paste( "norm.slope",norm.re.slope,var.re.slope,sep="."  ) else  ps.slope<-paste( "norm.slope",norm.re.slope,shape.re.slope,scale.re.slope ,sep="."  )
+
+
+}
+
+if(sim.x2.qdr==FALSE ) ps.qdr="" else ps.qdr<-b.qdr
+
+
+nm.ind<-paste(  "results/IndicatorClusterN",N,"bl",bal,"n",n[1],"n.eps",norm.eps, "p.eps",ps.eps,"n.int",norm.re.intercept,"p.int",ps.int,"s.re.s",sim.re.slope,
+ps.slope,"s.x2.q",sim.x2.qdr,ps.qdr,"f.r.s",fit.re.slope,"M",M,".txt",sep="." )
+
+nm.l1<-paste(  "results/Lambda0.5ClusterN",N,"bl",bal,"n",n[1],"n.eps",norm.eps, "p.eps",ps.eps,"n.int",norm.re.intercept,"p.int",ps.int,"s.re.s",sim.re.slope,
+ps.slope,"s.x2.q",sim.x2.qdr,ps.qdr,"f.r.s",fit.re.slope,"M",M,".txt",sep="." )
+
+nm.l2<-paste(  "results/Lambda1ClusterN",N,"bl",bal,"n",n[1],"n.eps",norm.eps, "p.eps",ps.eps,"n.int",norm.re.intercept,"p.int",ps.int,"s.re.s",sim.re.slope,
+ps.slope,"s.x2.q",sim.x2.qdr,ps.qdr,"f.r.s",fit.re.slope,"M",M,".txt",sep="." )
+
+nm.l3<-paste(  "results/Lambda2ClusterN",N,"bl",bal,"n",n[1],"n.eps",norm.eps, "p.eps",ps.eps,"n.int",norm.re.intercept,"p.int",ps.int,"s.re.s",sim.re.slope,
+ps.slope,"s.x2.q",sim.x2.qdr,ps.qdr,"f.r.s",fit.re.slope,"M",M,".txt",sep="." )
+
+nm.l4<-paste(  "results/Lambda5ClusterN",N,"bl",bal,"n",n[1],"n.eps",norm.eps, "p.eps",ps.eps,"n.int",norm.re.intercept,"p.int",ps.int,"s.re.s",sim.re.slope,
+ps.slope,"s.x2.q",sim.x2.qdr,ps.qdr,"f.r.s",fit.re.slope,"M",M,".txt",sep="." )
+
+nm.l5<-paste(  "results/LambdaInfClusterN",N,"bl",bal,"n",n[1],"n.eps",norm.eps, "p.eps",ps.eps,"n.int",norm.re.intercept,"p.int",ps.int,"s.re.s",sim.re.slope,
+ps.slope,"s.x2.q",sim.x2.qdr,ps.qdr,"f.r.s",fit.re.slope,"M",M,".txt",sep="." )
+
+
+write(res.ind,append=T,ncol=length(res.ind),sep="\t",file=nm.ind)
+
+write(res.l1,append=T,ncol=length(res.l1),sep="\t",file=nm.l1)
+write(res.l2,append=T,ncol=length(res.l2),sep="\t",file=nm.l2)
+write(res.l3,append=T,ncol=length(res.l3),sep="\t",file=nm.l3)
+
+write(res.l4,append=T,ncol=length(res.l4),sep="\t",file=nm.l4)
+write(res.l5,append=T,ncol=length(res.l5),sep="\t",file=nm.l5)
+
+
+
+
+
+
+print(ii)
+
+
+}
+
+
+
+
+

@@ -24,7 +24,7 @@ KS and CvM pvalues for Pan, Simulation, sign-flip and permutations.
 Goodness-of fit test based on cumulative sum stochastic process. Used for simulations. Returns only KS and CvM p-values for 2 methods (Pan, SF) and individual as well as cluster specific residuals. Fs not implemented here.
 }
 \details{
-no colesky when creating new outcome.
+no colesky when creating new outcome. in Pan I aslo use -1,1 instead of N as before.
 }
 \examples{
 # simulate some data:

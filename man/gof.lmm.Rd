@@ -7,8 +7,10 @@
 gof.lmm(fit, residuals = c("individual", "cluster"), std.type = c(1,
   2), use.correction.for.imbalance = FALSE, subset.fix = NULL,
   type = c("simulation", "sign.flip", "permutation"), M = 100,
-  order.by.original = FALSE, force.permutation.with.O = FALSE,
-  verbose = FALSE)
+  order.by.original = TRUE, force.permutation.with.O = FALSE,
+  verbose = FALSE, flip.cluster = TRUE, use.normal = FALSE,
+  use.mammen = FALSE, use.sigmoid = FALSE, lambda = 0.5,
+  transform = TRUE)
 }
 \arguments{
 \item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!}
@@ -26,13 +28,25 @@ Currently implemeneted options are \code{1} and \code{2} for S_i=\hat\sigma^{-1/
 
 \item{M}{Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.}
 
-\item{order.by.original}{Logical. Should the residuals in the the processes $W^m$ be ordered by the original fitted values? Defaults to \code{FALSE}.
+\item{order.by.original}{Logical. Should the residuals in the the processes $W^m$ be ordered by the original fitted values? Defaults to \code{TRUE}.
 Makes sense only for \code{type="sign.flip"} and \code{type="permutation"} since when \code{type="simulation"} the ordering is always based on the original predictions.
 It is programmed such that J_i is reestimated at each iteration $m$.}
 
 \item{force.permutation.with.O}{Logical. Should the permutations be used also for the O process? Defaults to \code{FALSE}.}
 
 \item{verbose}{Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.}
+
+\item{flip.cluster}{Logical. Should entire cluster be flipped (i.e. should all subjects within the cluster be multiplied with the same random number). Defaults to \code{TRUE}.}
+
+\item{use.normal}{Lolgical. Use normal random variables instead of sign-flip. Defaultes to \code{FALSE}.}
+
+\item{use.mammen}{Logical. Use Mammen's 2 point dostribution instead of sign-flip. Defaultes to \code{FALSE}. Not in use when \code{use.normal=TRUE}}
+
+\item{use.sigmoid}{Logical. Use sigmoid function instead of the indicator, i.e. smooth the process. Defaults to \code{FALSE}.}
+
+\item{lambda}{Smoothing parameter. Not used when \code{use.sigmoid=FALSE}. Defaults to 0.5.}
+
+\item{transform}{Logical. Should the predictions be transformed to 0,1? Defaults to TRUE.}
 }
 \value{
 An object of class \code{"gofLMM"} for which \code{plot} and \code{summary} functions are available.

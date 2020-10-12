@@ -7,7 +7,7 @@
 get.sim.proc.F(fit, residuals, std.type, use.correction.for.imbalance,
   subset.fix, order.by.original, or.original.fitted.P,
   or.original.fitted.S, original.fitted.P, original.fitted.S, n, N, x, ZZ,
-  id)
+  id, transform)
 }
 \description{
 Internal function
