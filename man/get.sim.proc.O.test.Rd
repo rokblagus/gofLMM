@@ -4,8 +4,20 @@
 \alias{get.sim.proc.O.test}
 \title{Internal function}
 \usage{
-get.sim.proc.O.test(fit, residuals, std.type, use.correction.for.imbalance,
-  order.by.original, n, N, x, ZZ, id, est.original, or.original)
+get.sim.proc.O.test(
+  fit,
+  residuals,
+  std.type,
+  use.correction.for.imbalance,
+  order.by.original,
+  n,
+  N,
+  x,
+  ZZ,
+  id,
+  est.original,
+  or.original
+)
 }
 \description{
 Internal function

@@ -4,8 +4,20 @@
 \alias{gof.lmm.O.type2.i}
 \title{Internal function}
 \usage{
-gof.lmm.O.type2.i(fit, residuals, std.type, use.correction.for.imbalance,
-  type, M, order.by.original, id, N, n, ZZ, x)
+gof.lmm.O.type2.i(
+  fit,
+  residuals,
+  std.type,
+  use.correction.for.imbalance,
+  type,
+  M,
+  order.by.original,
+  id,
+  N,
+  n,
+  ZZ,
+  x
+)
 }
 \description{
 Internal function

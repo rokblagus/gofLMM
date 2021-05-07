@@ -4,8 +4,13 @@
 \alias{gof.lmm.sim}
 \title{Goodness-of fit test for LMM, all faster}
 \usage{
-gof.lmm.sim(fit, std.type = c(1, 2),
-  use.correction.for.imbalance = FALSE, M = 100, verbose = FALSE)
+gof.lmm.sim(
+  fit,
+  std.type = c(1, 2),
+  use.correction.for.imbalance = FALSE,
+  M = 100,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}; ID variable must be numeric and ordered from 1:N !.}

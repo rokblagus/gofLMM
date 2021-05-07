@@ -4,9 +4,21 @@
 \alias{get.sim.proc.O}
 \title{Internal function}
 \usage{
-get.sim.proc.O(fit, residuals, std.type, use.correction.for.imbalance,
-  order.by.original, or.original.fitted.I, original.fitted.I, n, N, x, ZZ,
-  id, transform)
+get.sim.proc.O(
+  fit,
+  residuals,
+  std.type,
+  use.correction.for.imbalance,
+  order.by.original,
+  or.original.fitted.I,
+  original.fitted.I,
+  n,
+  N,
+  x,
+  ZZ,
+  id,
+  transform
+)
 }
 \description{
 Internal function

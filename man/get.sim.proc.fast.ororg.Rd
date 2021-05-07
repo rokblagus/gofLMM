@@ -4,8 +4,20 @@
 \alias{get.sim.proc.fast.ororg}
 \title{Internal function}
 \usage{
-get.sim.proc.fast.ororg(fit, std.type, use.correction.for.imbalance, n, N,
-  x, ZZ, id, fittedI, or.fittedI, fittedP, or.fittedP)
+get.sim.proc.fast.ororg(
+  fit,
+  std.type,
+  use.correction.for.imbalance,
+  n,
+  N,
+  x,
+  ZZ,
+  id,
+  fittedI,
+  or.fittedI,
+  fittedP,
+  or.fittedP
+)
 }
 \description{
 Internal function

@@ -5,15 +5,15 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "2911438359",
+    "hash" : "1967844846",
     "id" : "BA1E63F",
-    "lastKnownWriteTime" : 1600856994,
-    "last_content_update" : 1600856994,
+    "lastKnownWriteTime" : 1620407217,
+    "last_content_update" : 1620407217593,
     "path" : "C:/Users/rblagus/Dropbox (MF Uni LJ)/gofLinearMixedModel/package/gofLMM/R/functions_gofLMM.R",
     "project_path" : "R/functions_gofLMM.R",
     "properties" : {
-        "cursorPosition" : "3109,0",
-        "scrollLine" : "3107"
+        "cursorPosition" : "27,0",
+        "scrollLine" : "16"
     },
     "read_only" : false,
     "read_only_alternatives" : [

@@ -4,8 +4,13 @@
 \alias{gof.lmm.sim.orderbyoriginal}
 \title{Goodness-of fit test for LMM, all faster, ordering the residuals by the original fitted values also for the SF and permutation approach}
 \usage{
-gof.lmm.sim.orderbyoriginal(fit, std.type = c(1, 2),
-  use.correction.for.imbalance = FALSE, M = 100, verbose = FALSE)
+gof.lmm.sim.orderbyoriginal(
+  fit,
+  std.type = c(1, 2),
+  use.correction.for.imbalance = FALSE,
+  M = 100,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}; ID variable must be numeric and ordered from 1:N !.}

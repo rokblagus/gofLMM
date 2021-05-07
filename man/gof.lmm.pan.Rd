@@ -4,10 +4,19 @@
 \alias{gof.lmm.pan}
 \title{Goodness-of fit test for LMM as proposed by Pan et al.}
 \usage{
-gof.lmm.pan(fit, residuals = c("individual", "cluster"),
-  std.type = c(1, 2), use.correction.for.imbalance = FALSE,
-  subset.fix = NULL, M = 100, verbose = FALSE, use.normal = FALSE,
-  use.mammen = FALSE, use.sigmoid = FALSE, lambda = 0.5)
+gof.lmm.pan(
+  fit,
+  residuals = c("individual", "cluster"),
+  std.type = c(1, 2),
+  use.correction.for.imbalance = FALSE,
+  subset.fix = NULL,
+  M = 100,
+  verbose = FALSE,
+  use.normal = FALSE,
+  use.mammen = FALSE,
+  use.sigmoid = FALSE,
+  lambda = 0.5
+)
 }
 \arguments{
 \item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N !}

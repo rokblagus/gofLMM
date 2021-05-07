@@ -4,8 +4,7 @@
 \alias{get.sim.proc.fast}
 \title{Internal function}
 \usage{
-get.sim.proc.fast(fit, std.type, use.correction.for.imbalance, n, N, x, ZZ,
-  id)
+get.sim.proc.fast(fit, std.type, use.correction.for.imbalance, n, N, x, ZZ, id)
 }
 \description{
 Internal function

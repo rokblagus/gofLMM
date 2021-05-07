@@ -4,10 +4,25 @@
 \alias{get.sim.proc.F.sigma}
 \title{Internal function}
 \usage{
-get.sim.proc.F.sigma(fit, residuals, std.type,
-  use.correction.for.imbalance, subset.fix, order.by.original,
-  or.original.fitted.P, or.original.fitted.S, original.fitted.P,
-  original.fitted.S, n, N, x, ZZ, id, sigmaP, sigmaPS)
+get.sim.proc.F.sigma(
+  fit,
+  residuals,
+  std.type,
+  use.correction.for.imbalance,
+  subset.fix,
+  order.by.original,
+  or.original.fitted.P,
+  or.original.fitted.S,
+  original.fitted.P,
+  original.fitted.S,
+  n,
+  N,
+  x,
+  ZZ,
+  id,
+  sigmaP,
+  sigmaPS
+)
 }
 \description{
 Internal function

@@ -1,9 +1,12 @@
 
 
 
+
+
 ##############################
 
 ##aux functions
+
 
 
 #' Internal function
@@ -14,12 +17,24 @@ trans<-function(x){ecf<-ecdf(x);ecf(x)}
 #' Internal function
 #' @keywords internal
 
-p<-function(x) qq(2*x-1)
+#used in Version 9.0.0
+#p<-function(x) qq(2*x-1)
 
-qq = function(x) {
-  max(0, min(1, 1/8 * (-10 * (x + 1)^3 + 15/2 * (x + 1)^4 - 3/2 * (x + 1)^5) + 1))
+#qq = function(x) {
+ # max(0, min(1, 1/8 * (-10 * (x + 1)^3 + 15/2 * (x + 1)^4 - 3/2 * (x + 1)^5) + 1))
+#}
+
+#used in Version 10.0.0
+p =  function(x) {
+  max(0, min(1, -x^3 * (10 - 15 * x + 6 * x^2) + 1))
 }
 
+#used in Version 11.0.0
+#p = function(x) {
+ # max(0, min(1,
+  #           ifelse(x < 0.5, 8 * x^3 * (- 2 + 3 * x) + 1, - 8 * (x - 1)^3 * (3 * x - 1))
+  #))
+#}
 #' Internal function
 #' @keywords internal
 
@@ -8086,3 +8101,81 @@ gof.lmm.O.test.norefit<-function(fit,residuals="individual",std.type=c(1,2),use.
 
 }
 
+
+
+#' Goodness-of fit test for LMM, function to simulate data
+#'
+#' This function can be used to simulate (balanced) cluster data as used in the simulation study of Peterlin et al. See the paper for details.
+
+#'
+#' @param N number of clusters
+#' @param n number of subjects per cluster (the same for all clusters)
+#' @param betas Vector of true regression coefficients for the fixed effects
+#' @param norm.eps Logical, if TRUE the errors are simulated from a (zero mean) normal distribution with variance \code{var.eps}, otherwise from a (centered) gama with parameters \code{shape} and \code{scale}
+#' @param var.eps see above
+#' @param shape see above
+#' @param scale see above
+#' @param norm.re.intercept Logical, if TRUE the random intercepts are simulated from a (zero mean) normal distribution with variance \code{var.re.intercept}, otherwise from a (centered) gama with parameters \code{shape.re.intercept} and \code{scale.re.intercept}
+#' @param var.re.intercept see above
+#' @param shape.re.intercept see above
+#' @param scale.re.intercept see above
+#' @param sim.re.slope Logical. If TRUE random slopes are simulated.
+#' @param norm.re.slope Logical, if TRUE the random slopes are simulated from a (zero mean) normal distribution with variance \code{var.re.slope}, otherwise from a (centered) gama with parameters \code{shape.re.slope} and \code{scale.re.slope}
+#' @param var.re.slope see above
+#' @param shape.re.slope see above
+#' @param scale.re.slope see above
+#' @param sim.x2.qdr Logical. If TRUE the square of X2 is included in the true (correct) fixed effects design matrix.
+#' @param b.qdr True beta coefficient associated with the square of X2
+#' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
+#' @seealso \code{\link{gof.lmm}}
+#' @export
+
+
+sim.data.cluster<-function(N,n,betas, norm.eps,var.eps=NULL,shape=NULL,scale=NULL,norm.re.intercept,var.re.intercept=NULL,shape.re.intercept=NULL,scale.re.intercept=NULL,sim.re.slope,
+                           norm.re.slope=NULL,var.re.slope=NULL,shape.re.slope=NULL,scale.re.slope=NULL,sim.x2.qdr=FALSE,b.qdr=NULL){
+
+
+
+  yy<-NA
+
+  id<-NA
+  x1<-NA
+  x2<-NA
+  for (gg in 1:N){
+
+    id<-c(id,rep(gg,each=n[gg]))
+    x11<-runif(n[gg])
+    x1<-c(x1,x11)
+
+    x22<-runif(n[gg])
+    x2<-c(x2,x22)
+    if (norm.re.intercept==TRUE) re.int<-rnorm(1,sd=sqrt(var.re.intercept)) else re.int<-rgamma(1,shape=shape.re.intercept,scale=scale.re.intercept)-shape.re.intercept*scale.re.intercept
+
+    b<-rep(re.int,each=n[gg])
+
+
+
+    if (norm.eps==TRUE) eps<-rnorm(n[gg],sd=sqrt(var.eps)) else eps<-rgamma(n[gg],shape=shape,scale=scale)-shape*scale
+
+    if (sim.re.slope==TRUE) {
+      if (norm.re.slope==TRUE) re.slope<-rnorm(1,sd=sqrt(var.re.slope)) else re.slope<-rgamma(1,shape=shape.re.slope,scale=scale.re.slope)-shape.re.slope*scale.re.slope
+
+      b2<-rep(re.slope,each=n[gg])
+
+      if (sim.x2.qdr==FALSE)   y<-betas[1]+betas[2]*x11+betas[3]*x22+b+b2*x11+eps  else y<-betas[1]+betas[2]*x11+betas[3]*x22+b+b2*x11+eps+ b.qdr*x11**2
+    } else {
+      if (sim.x2.qdr==FALSE) y<-betas[1]+betas[2]*x11+betas[3]*x22+b+eps   else y<-betas[1]+betas[2]*x11+betas[3]*x22+b+eps+ b.qdr*x11**2
+
+    }
+    yy<-c(yy,y)
+
+  }
+  yy<-yy[-1]
+  x2<-x2[-1]
+  x1<-x1[-1]
+  id<-id[-1]
+  df<-data.frame(id=id,y=yy,x1=x1,x2=x2)
+
+  df
+
+}

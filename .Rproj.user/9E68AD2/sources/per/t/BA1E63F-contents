@@ -1,9 +1,57 @@
 
 
 
+
+
 ##############################
 
 ##aux functions
+
+
+
+#' Internal function
+#' @keywords internal
+
+trans<-function(x){ecf<-ecdf(x);ecf(x)}
+
+#' Internal function
+#' @keywords internal
+
+#used in Version 9.0.0
+#p<-function(x) qq(2*x-1)
+
+#qq = function(x) {
+ # max(0, min(1, 1/8 * (-10 * (x + 1)^3 + 15/2 * (x + 1)^4 - 3/2 * (x + 1)^5) + 1))
+#}
+
+#used in Version 10.0.0
+p =  function(x) {
+  max(0, min(1, -x^3 * (10 - 15 * x + 6 * x^2) + 1))
+}
+
+#used in Version 11.0.0
+#p = function(x) {
+ # max(0, min(1,
+  #           ifelse(x < 0.5, 8 * x^3 * (- 2 + 3 * x) + 1, - 8 * (x - 1)^3 * (3 * x - 1))
+  #))
+#}
+#' Internal function
+#' @keywords internal
+
+sigf = function(y, lambda) {
+  n = length(y)
+  res = matrix(rep(0, n^2), ncol = n)
+
+  for(j in 1:n) {
+    for(i in 1:n) {
+      res[i, j] = p(lambda * (y[i] - y[j]))
+    }
+  }
+  t(res)
+}
+
+
+
 
 #' Internal function
 #' @keywords internal
@@ -11,7 +59,25 @@
 
 "%^%" <- function(x, n)   with(eigen(x), vectors %*% (values^n * t(vectors)))
 
+#' Internal function
+#' @keywords internal
 
+my.mammen<-function(n){
+
+  p1<-(sqrt(5)+1)/(2*sqrt(5))
+  p2<-(sqrt(5)-1)/(2*sqrt(5))
+
+  x1<--(sqrt(5)-1)/2
+  x2<-(sqrt(5)+1)/2
+
+y<-rbinom(n,size=1,prob=p2)
+
+y[y==0]<-x1
+y[y==1]<-x2
+
+y
+
+}
 
 #' Internal function
 #' @keywords internal
@@ -77,7 +143,7 @@ test.stat.p.val<-function(W,Wm){
 #' @keywords internal
 
 
-get.sim.proc<-function(fit, residuals ,std.type ,use.correction.for.imbalance ,subset.fix ,order.by.original ,or.original.fitted.I ,or.original.fitted.P ,or.original.fitted.S,original.fitted.I ,original.fitted.P ,original.fitted.S,n,N,x,ZZ,id ){
+get.sim.proc<-function(fit, residuals ,std.type ,use.correction.for.imbalance ,subset.fix ,order.by.original ,or.original.fitted.I ,or.original.fitted.P ,or.original.fitted.S,original.fitted.I ,original.fitted.P ,original.fitted.S,n,N,x,ZZ,id,transform ){
 
 
 resI<-residuals(fit, level = 1  )
@@ -87,6 +153,12 @@ resP<-residuals(fit, level = 0  )
 
 if (order.by.original==TRUE) estI<-original.fitted.I  else estI<-fitted(fit,level=1)
 if (order.by.original==TRUE) estP<-original.fitted.P  else estP<-fitted(fit,level=0)
+
+
+if (transform==TRUE){
+  estI<-trans(estI)
+  estP<-trans(estP)
+}
 
 if (order.by.original==TRUE)  orI<-or.original.fitted.I  else orI<-order(estI)
 if (order.by.original==TRUE)  orP<-or.original.fitted.P  else orP<-order(estP)
@@ -212,9 +284,15 @@ x.subset<-model.matrix(subset.fix, data=fit$data   )
 cfs.fix.sub<-fixef(fit)[colnames(x.subset)]
 
 estS<-x.subset%*%cfs.fix.sub
+if (transform==TRUE){
+  estS<-trans(estS)
+ }
 orS<-order(estS)
 } else {
 estS<-original.fitted.S
+if (transform==TRUE){
+  estS<-trans(estS)
+}
 orS<-or.original.fitted.S
 }
 
@@ -233,12 +311,182 @@ list(WI2,WP2,WP2s,estI,estP,estS)
 }
 
 
+#' Internal function
+#' @keywords internal
+
+
+get.sim.proc.sigma<-function(fit, residuals ,std.type ,use.correction.for.imbalance ,subset.fix ,order.by.original ,or.original.fitted.I ,or.original.fitted.P ,or.original.fitted.S,original.fitted.I ,original.fitted.P ,original.fitted.S,n,N,x,ZZ,id,sigmaI,sigmaP,sigmaPS ,transform){
+
+
+  resI<-residuals(fit, level = 1  )
+
+
+  resP<-residuals(fit, level = 0  )
+
+  if (order.by.original==TRUE) estI<-original.fitted.I  else estI<-fitted(fit,level=1)
+  if (order.by.original==TRUE) estP<-original.fitted.P  else estP<-fitted(fit,level=0)
+  if (transform==TRUE){
+    estI<-trans(estI)
+    estP<-trans(estP)
+  }
+  if (order.by.original==TRUE)  orI<-or.original.fitted.I  else orI<-order(estI)
+  if (order.by.original==TRUE)  orP<-or.original.fitted.P  else orP<-order(estP)
+
+
+  vc<-VarCorr(fit)
+  sigma.est<-as.numeric(vc[nrow(vc),1])
+
+  D<-getVarCov(fit)
+
+  beta.f<-fixef(fit)
+
+  V<-list()
+  V.i<-list()
+  Z<-list()
+
+  H<-matrix(0,ncol=ncol(x),nrow=ncol(x))
+  for (gg in 1:N){
+    if (ncol(ZZ)==1) Z[[gg]]<-matrix(ZZ[id==gg,],ncol=1) else Z[[gg]]<-ZZ[id==gg,]
+    if (n[gg]==1) Z[[gg]]<-matrix(Z[[gg]],nrow=1)
+    I<-diag(rep(1),n[[gg]])
+    V[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]])+sigma.est*I
+    V.i[[gg]]<-V[[gg]]%^%(-1)
+    if (n[gg]!=1) H<-H+t(x[id==gg,])%*%V.i[[gg]]%*%x[id==gg,] else H<-H+matrix(x[id==gg,],ncol=1)%*%V.i[[gg]]%*%x[id==gg,]
+  }
+
+  H.i<-solve(H)
+
+
+  J<-list()
+  A<-list()
+  B<-list()
+
+  res.i.c<-resI
+
+
+  for (gg in 1:N){
+
+
+    if (n[gg]!=1) A[[gg]]<-sigma.est*V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%t(x[id==gg,]) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]]) else A[[gg]]<-sigma.est*V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%matrix(x[id==gg,],ncol=1) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]])
+
+    if (n[gg]!=1) B[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]]) %*%V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%t(x[id==gg,]) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]]) else B[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]]) %*%V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%matrix(x[id==gg,],ncol=1) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]])
+
+
+
+    I<-diag(rep(1,n[gg]))
+
+    if (residuals=="individual") J[[gg]]<-sigma.est*V.i[[gg]]-(A[[gg]])%*%ginv(B[[gg]])%*% Z[[gg]]%*%D%*%t(Z[[gg]])%*%V.i[[gg]] else J[[gg]]<-I-(A[[gg]]+B[[gg]])%*%ginv(B[[gg]])%*% Z[[gg]]%*%D%*%t(Z[[gg]])%*%V.i[[gg]]
+
+
+    if (residuals=="individual") res.i.c[id==gg]<- J[[gg]]%*% resI[id==gg] else  res.i.c[id==gg]<- J[[gg]]%*% resP[id==gg]
+
+
+
+  }
+
+
+
+  V.ii.inv<-list()
+
+
+  if (residuals=="individual") res.i.c2<-resI else res.i.c2<-resP
+
+
+  resIst<-NA
+  resPst<-NA
+  for (gg in 1:N){
+    I<-diag(rep(1,n[gg]))
+
+    V.ii.inv[[gg]]<-V[[gg]]%^%(-0.5)
+
+
+
+
+    if (std.type==2) Si<-V.ii.inv[[gg]] else Si<-  1/sqrt( sigma.est )*diag(rep(1,n[gg]))
+    if (use.correction.for.imbalance==TRUE) Si<-Si/sqrt(n[gg])
+
+    resPMpC<-matrix(res.i.c[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2<-Si%*%resPMpC
+    resPMpC2<-resPMpC2
+
+    resIst<-c(resIst,resPMpC2)
+
+
+    resPMpCP<-matrix(res.i.c2[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2P<-Si%*%resPMpCP
+    resPMpC2P<-resPMpC2P
+
+    resPst<-c(resPst,resPMpC2P)
+
+  }
+
+
+  resIst<-resIst[-1]
+  resPst<-resPst[-1]
+
+
+  resoI2<-resIst[orI]
+  t01<- estI
+
+  for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+    ig<-which(round(t01[orI],10)==round(ii,10))
+    resoI2[ig]<-sum(resoI2[ig])/length(ig)
+  }
+
+  WI2<-1/sqrt(N )*sigmaI%*%resoI2
+
+  resoP2<-resPst[orP]
+  t01P<- estP
+  for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+    ig<-which(round(t01P[orP],10)==round(ii,10))
+    resoP2[ig]<-sum(resoP2[ig])/length(ig)
+  }
+
+  WP2<-1/sqrt(N )*sigmaP%*%resoP2
+
+
+  ##for Fs:
+  if (!is.null(original.fitted.S)){
+
+    if (order.by.original==FALSE){
+      x.subset<-model.matrix(subset.fix, data=fit$data   )
+      cfs.fix.sub<-fixef(fit)[colnames(x.subset)]
+
+      estS<-x.subset%*%cfs.fix.sub
+      if (transform==TRUE){
+        estS<-trans(estS)
+            }
+      orS<-order(estS)
+    } else {
+      estS<-original.fitted.S
+      if (transform==TRUE){
+        estS<-trans(estS)
+      }
+      orS<-or.original.fitted.S
+    }
+
+    resoP22<-resPst[orS]
+    t01P<- estS
+    for (ii in as.numeric(names(table(t01P[orS]))[which(table(t01P[orS])>1)])){
+      ig<-which(round(t01P[orS],10)==round(ii,10))
+      resoP22[ig]<-sum(resoP22[ig])/length(ig)
+    }
+
+    WP2s<-1/sqrt(N )*sigmaPS%*%resoP22
+
+    list(WI2,WP2,WP2s,estI,estP,estS)
+  } else list(WI2,WP2,estI,estP)
+
+}
+
+
+
 
 
 #' Internal function
 #' @keywords internal
 
-get.sim.proc.O<-function(fit, residuals ,std.type ,use.correction.for.imbalance ,  order.by.original ,or.original.fitted.I , original.fitted.I  ,n,N,x,ZZ,id ){
+get.sim.proc.O<-function(fit, residuals ,std.type ,use.correction.for.imbalance ,  order.by.original ,or.original.fitted.I , original.fitted.I  ,n,N,x,ZZ,id,transform ){
 
 
 
@@ -249,6 +497,9 @@ resP<-residuals(fit, level = 0  )
 
 if (order.by.original==TRUE)  estI<-original.fitted.I  else estI<-fitted(fit,level=1)
 
+if (transform==TRUE){
+  estI<-trans(estI)
+  }
 
 if (order.by.original==TRUE)  orI<-or.original.fitted.I  else orI<-order(estI)
 
@@ -357,8 +608,131 @@ list(WI2,estI)
 #' Internal function
 #' @keywords internal
 
+get.sim.proc.O.sigma<-function(fit, residuals ,std.type ,use.correction.for.imbalance ,  order.by.original ,or.original.fitted.I , original.fitted.I  ,n,N,x,ZZ,id ,sigmaI,transform){
 
-get.sim.proc.F<-function(fit, residuals ,std.type ,use.correction.for.imbalance ,subset.fix ,order.by.original ,  or.original.fitted.P ,or.original.fitted.S, original.fitted.P ,original.fitted.S,n,N,x,ZZ,id ){
+
+
+  resI<-residuals(fit, level = 1  )
+
+
+  resP<-residuals(fit, level = 0  )
+
+  if (order.by.original==TRUE)  estI<-original.fitted.I  else estI<-fitted(fit,level=1)
+  if (transform==TRUE){
+    estI<-trans(estI)
+
+  }
+
+  if (order.by.original==TRUE)  orI<-or.original.fitted.I  else orI<-order(estI)
+
+
+
+  vc<-VarCorr(fit)
+  sigma.est<-as.numeric(vc[nrow(vc),1])
+
+  D<-getVarCov(fit)
+
+  beta.f<-fixef(fit)
+
+  V<-list()
+  V.i<-list()
+  Z<-list()
+
+  H<-matrix(0,ncol=ncol(x),nrow=ncol(x))
+  for (gg in 1:N){
+    if (ncol(ZZ)==1) Z[[gg]]<-matrix(ZZ[id==gg,],ncol=1) else Z[[gg]]<-ZZ[id==gg,]
+    if (n[gg]==1) Z[[gg]]<-matrix(Z[[gg]],nrow=1)
+    I<-diag(rep(1),n[[gg]])
+    V[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]])+sigma.est*I
+    V.i[[gg]]<-V[[gg]]%^%(-1)
+    if (n[gg]!=1) H<-H+t(x[id==gg,])%*%V.i[[gg]]%*%x[id==gg,] else H<-H+matrix(x[id==gg,],ncol=1)%*%V.i[[gg]]%*%x[id==gg,]
+  }
+
+  H.i<-solve(H)
+
+
+  J<-list()
+  A<-list()
+  B<-list()
+
+  res.i.c<-resI
+
+
+  for (gg in 1:N){
+
+
+    if (n[gg]!=1) A[[gg]]<-sigma.est*V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%t(x[id==gg,]) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]]) else A[[gg]]<-sigma.est*V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%matrix(x[id==gg,],ncol=1) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]])
+
+    if (n[gg]!=1) B[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]]) %*%V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%t(x[id==gg,]) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]]) else B[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]]) %*%V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%matrix(x[id==gg,],ncol=1) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]])
+
+
+
+    I<-diag(rep(1,n[gg]))
+
+    if (residuals=="individual") J[[gg]]<-sigma.est*V.i[[gg]]-(A[[gg]])%*%ginv(B[[gg]])%*% Z[[gg]]%*%D%*%t(Z[[gg]])%*%V.i[[gg]] else J[[gg]]<-I-(A[[gg]]+B[[gg]])%*%ginv(B[[gg]])%*% Z[[gg]]%*%D%*%t(Z[[gg]])%*%V.i[[gg]]
+
+
+    if (residuals=="individual") res.i.c[ id==gg]<- J[[gg]]%*% resI[ id==gg] else  res.i.c[ id==gg]<- J[[gg]]%*% resP[ id==gg]
+
+
+
+  }
+
+
+
+  V.ii.inv<-list()
+  V.ii<-list()
+
+
+
+  resIst<-NA
+
+  for (gg in 1:N){
+    I<-diag(rep(1,n[gg]))
+
+    V.ii.inv[[gg]]<-V[[gg]]%^%(-0.5)
+    V.ii[[gg]]<-V[[gg]]%^%(0.5)
+
+
+
+    if (std.type==2) Si<-V.ii.inv[[gg]] else Si<-  1/sqrt( sigma.est )*diag(rep(1,n[gg]))
+    if (use.correction.for.imbalance==TRUE) Si<-Si/sqrt(n[gg])
+
+    resPMpC<-matrix(res.i.c[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2<-Si%*%resPMpC
+    resPMpC2<-resPMpC2
+
+    resIst<-c(resIst,resPMpC2)
+
+
+  }
+
+
+  resIst<-resIst[-1]
+
+
+
+  resoI2<-resIst[orI]
+  t01<- estI
+
+  for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+    ig<-which(round(t01[orI],10)==round(ii,10))
+    resoI2[ig]<-sum(resoI2[ig])/length(ig)
+  }
+
+  WI2<-1/sqrt(N )*sigmaI%*%resoI2
+
+  list(WI2,estI)
+
+}
+
+
+
+#' Internal function
+#' @keywords internal
+
+
+get.sim.proc.F<-function(fit, residuals ,std.type ,use.correction.for.imbalance ,subset.fix ,order.by.original ,  or.original.fitted.P ,or.original.fitted.S, original.fitted.P ,original.fitted.S,n,N,x,ZZ,id,transform ){
 
 
 
@@ -371,7 +745,9 @@ resP<-residuals(fit, level = 0  )
 
 if (order.by.original==TRUE)  estP<-original.fitted.P else  estP<-fitted(fit,level=0)
 
-
+if (transform==TRUE){
+   estP<-trans(estP)
+}
 if (order.by.original==TRUE)  orP<-or.original.fitted.P  else orP<-order(estP)
 
 
@@ -453,9 +829,15 @@ x.subset<-model.matrix(subset.fix, data=fit$data   )
 cfs.fix.sub<-fixef(fit)[colnames(x.subset)]
 
 estS<-x.subset%*%cfs.fix.sub
+if (transform==TRUE){
+    estS<-trans(estS)
+}
 orS<-order(estS)
 } else {
 estS<-original.fitted.S
+if (transform==TRUE){
+    estS<-trans(estS)
+}
 orS<-or.original.fitted.S
 }
 
@@ -475,6 +857,136 @@ list( WP2,WP2s, estP,estS)
 
 
 
+
+
+
+#' Internal function
+#' @keywords internal
+
+
+get.sim.proc.F.sigma<-function(fit, residuals ,std.type ,use.correction.for.imbalance ,subset.fix ,order.by.original ,  or.original.fitted.P ,or.original.fitted.S, original.fitted.P ,original.fitted.S,n,N,x,ZZ,id ,sigmaP, sigmaPS){
+
+
+
+
+  resI<-residuals(fit, level = 1  )
+
+
+  resP<-residuals(fit, level = 0  )
+
+
+  if (order.by.original==TRUE)  estP<-original.fitted.P else  estP<-fitted(fit,level=0)
+  if (transform==TRUE){
+       estP<-trans(estP)
+  }
+
+  if (order.by.original==TRUE)  orP<-or.original.fitted.P  else orP<-order(estP)
+
+
+  vc<-VarCorr(fit)
+  sigma.est<-as.numeric(vc[nrow(vc),1])
+
+  D<-getVarCov(fit)
+
+  beta.f<-fixef(fit)
+
+  V<-list()
+  V.i<-list()
+  Z<-list()
+
+  H<-matrix(0,ncol=ncol(x),nrow=ncol(x))
+  for (gg in 1:N){
+    if (ncol(ZZ)==1) Z[[gg]]<-matrix(ZZ[id==gg,],ncol=1) else Z[[gg]]<-ZZ[id==gg,]
+    if (n[gg]==1) Z[[gg]]<-matrix(Z[[gg]],nrow=1)
+    I<-diag(rep(1),n[[gg]])
+    V[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]])+sigma.est*I
+    V.i[[gg]]<-V[[gg]]%^%(-1)
+    if (n[gg]!=1) H<-H+t(x[id==gg,])%*%V.i[[gg]]%*%x[id==gg,] else H<-H+matrix(x[id==gg,],ncol=1)%*%V.i[[gg]]%*%x[id==gg,]
+  }
+
+  H.i<-solve(H)
+
+
+
+
+  V.ii.inv<-list()
+
+
+  if (residuals=="individual") res.i.c2<-resI else res.i.c2<-resP
+
+
+
+  resPst<-NA
+  for (gg in 1:N){
+    I<-diag(rep(1,n[gg]))
+
+    V.ii.inv[[gg]]<-V[[gg]]%^%(-0.5)
+
+
+
+
+    if (std.type==2) Si<-V.ii.inv[[gg]] else Si<-  1/sqrt( sigma.est )*diag(rep(1,n[gg]))
+    if (use.correction.for.imbalance==TRUE) Si<-Si/sqrt(n[gg])
+
+
+
+    resPMpCP<-matrix(res.i.c2[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2P<-Si%*%resPMpCP
+    resPMpC2P<-resPMpC2P
+
+    resPst<-c(resPst,resPMpC2P)
+
+  }
+
+
+
+  resPst<-resPst[-1]
+
+
+  resoP2<-resPst[orP]
+  t01P<- estP
+  for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+    ig<-which(round(t01P[orP],10)==round(ii,10))
+    resoP2[ig]<-sum(resoP2[ig])/length(ig)
+  }
+
+  WP2<-1/sqrt(N )*sigmaP%*%resoP2
+
+
+  ##for Fs:
+  if (!is.null(original.fitted.S)){
+
+    if (order.by.original==FALSE){
+      x.subset<-model.matrix(subset.fix, data=fit$data   )
+      cfs.fix.sub<-fixef(fit)[colnames(x.subset)]
+
+      estS<-x.subset%*%cfs.fix.sub
+      if (transform==TRUE){
+                estS<-trans(estS)
+      }
+
+      orS<-order(estS)
+    } else {
+      estS<-original.fitted.S
+      if (transform==TRUE){
+                estS<-trans(estS)
+      }
+      orS<-or.original.fitted.S
+    }
+
+    resoP22<-resPst[orS]
+    t01P<- estS
+    for (ii in as.numeric(names(table(t01P[orS]))[which(table(t01P[orS])>1)])){
+      ig<-which(round(t01P[orS],10)==round(ii,10))
+      resoP22[ig]<-sum(resoP22[ig])/length(ig)
+    }
+
+    WP2s<-1/sqrt(N )*sigmaPS%*%resoP22
+
+    list( WP2,WP2s, estP,estS)
+  } else list( WP2,estP)
+
+}
 
 
 
@@ -499,11 +1011,17 @@ list( WP2,WP2s, estP,estS)
 #' @param  subset.fix Two-sided formula. If nonnull, the process $W^{F^s}$ will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process $W^{F^s}$ is not constructed.
 #' @param type How to obtain the processes $W^m$. Possible values are \code{"simulation"} for the simulation approach, \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach. When using \code{type="permutation"}, sign-flipping will be used by default if not specified otherwise by the argument \code{force.permutation.with.O}.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
-#' @param order.by.original Logical. Should the residuals in the the processes $W^m$ be ordered by the original fitted values? Defaults to \code{FALSE}.
+#' @param order.by.original Logical. Should the residuals in the the processes $W^m$ be ordered by the original fitted values? Defaults to \code{TRUE}.
 #' Makes sense only for \code{type="sign.flip"} and \code{type="permutation"} since when \code{type="simulation"} the ordering is always based on the original predictions.
 #' It is programmed such that J_i is reestimated at each iteration $m$.
 #' @param force.permutation.with.O Logical. Should the permutations be used also for the O process? Defaults to \code{FALSE}.
 #' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
+#' @param flip.cluster  Logical. Should entire cluster be flipped (i.e. should all subjects within the cluster be multiplied with the same random number). Defaults to \code{TRUE}.
+#' @param use.normal Lolgical. Use normal random variables instead of sign-flip. Defaultes to \code{FALSE}.
+#' @param use.mammen Logical. Use Mammen's 2 point dostribution instead of sign-flip. Defaultes to \code{FALSE}. Not in use when \code{use.normal=TRUE}
+#' @param use.sigmoid Logical. Use sigmoid function instead of the indicator, i.e. smooth the process. Defaults to \code{FALSE}.
+#' @param lambda Smoothing parameter. Not used when \code{use.sigmoid=FALSE}. Defaults to 0.5.
+#' @param transform Logical. Should the predictions be transformed to 0,1? Defaults to TRUE.
 #' @return An object of class \code{"gofLMM"} for which \code{plot} and \code{summary} functions are available.
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
 #' @seealso \code{\link{gof.lmm.pan}}, \code{\link{plot.gofLMM}} and  \code{\link{summary.gofLMM}}
@@ -593,7 +1111,7 @@ list( WP2,WP2s, estP,estS)
 
 
 
-gof.lmm<-function(fit,residuals=c("individual","cluster"),std.type=c(1,2),use.correction.for.imbalance=FALSE,subset.fix=NULL,type=c("simulation","sign.flip","permutation"),M=100,order.by.original=FALSE,force.permutation.with.O=FALSE,verbose=FALSE){
+gof.lmm<-function(fit,residuals=c("individual","cluster"),std.type=c(1,2),use.correction.for.imbalance=FALSE,subset.fix=NULL,type=c("simulation","sign.flip","permutation"),M=100,order.by.original=TRUE,force.permutation.with.O=FALSE,verbose=FALSE,flip.cluster=TRUE,use.normal=FALSE,use.mammen=FALSE,use.sigmoid=FALSE,lambda=0.5,transform=TRUE){
 
 ####checks, warnings
 
@@ -641,10 +1159,20 @@ resP<-residuals(fit, level = 0  )
 estI<-fitted(fit,level=1)
  estP<-fitted(fit,level=0)
 
+ if (transform==TRUE){
+   estI<-trans(estI)
+   estP<-trans(estP)
+ }
+
 orI<-order(estI)
 orP<-order(estP)
 
+if (use.sigmoid==TRUE){
 
+  sigmaI<-sigf(estI[orI],lambda)
+  sigmaP<-sigf(estP[orP],lambda)
+
+}
 
 vc<-VarCorr(fit)
 sigma.est<-as.numeric(vc[nrow(vc),1])
@@ -745,21 +1273,28 @@ resIst<-resIst[-1]
 resoI2<-resIst[orI]
  t01<- estI
 
+ if (use.sigmoid==FALSE) {
+
 for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
 ig<-which(round(t01[orI],10)==round(ii,10))
 resoI2[ig]<-sum(resoI2[ig])/length(ig)
 }
+}
 
-WI2<-1/sqrt(N )*cumsum(resoI2)
+if (use.sigmoid==FALSE) WI2<-1/sqrt(N )*cumsum(resoI2) else WI2<-1/sqrt(N )*sigmaI%*%resoI2
 
 resoP2<-resPst[orP]
  t01P<- estP
+
+ if (use.sigmoid==FALSE) {
 for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
 ig<-which(round(t01P[orP],10)==round(ii,10))
 resoP2[ig]<-sum(resoP2[ig])/length(ig)
 }
+ }
 
-WP2<-1/sqrt(N )*cumsum(resoP2)
+
+ if (use.sigmoid==FALSE) WP2<-1/sqrt(N )*cumsum(resoP2) else WP2<-1/sqrt(N )*sigmaP%*%resoP2
 
 
 ##for Fs:
@@ -770,14 +1305,24 @@ cfs.fix.sub<-fixef(fit)[colnames(x.subset)]
 estS<-x.subset%*%cfs.fix.sub
 orS<-order(estS)
 
+
+if (transform==TRUE){
+  estS<-trans(estS)
+  }
+
+if (use.sigmoid==TRUE) sigmaPS<-sigf(estS[orS],lambda)
+
 resoP22<-resPst[orS]
  t01P<- estS
+
+ if (use.sigmoid==FALSE) {
 for (ii in as.numeric(names(table(t01P[orS]))[which(table(t01P[orS])>1)])){
 ig<-which(round(t01P[orS],10)==round(ii,10))
 resoP22[ig]<-sum(resoP22[ig])/length(ig)
 }
+ }
 
-WP2s<-1/sqrt(N )*cumsum(resoP22)
+ if (use.sigmoid==FALSE) WP2s<-1/sqrt(N )*cumsum(resoP22) else WP2s<-1/sqrt(N )*sigmaPS%*%resoP22
 
 WsP21<-list()
 estSm<-list()
@@ -802,11 +1347,12 @@ for (iiii in 1:M){
 if (verbose) print(paste("Iteration: ",iiii,sep=""))
 
 
-smp<-rnorm(nrow(x))
+if (flip.cluster==FALSE) {if (use.normal==TRUE) smp<-rnorm(nrow(x)) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=nrow(x),replace=TRUE) else smp<-my.mammen(nrow(x))}}
 
 newres<-NA
 for (gg in 1:N){
-newres<-c(newres, V.ii[[gg]]%*%( (respermute*smp)[id==gg]))
+  if (flip.cluster==TRUE) {if (use.normal==TRUE) smp<-rnorm(1) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=1) else smp<-my.mammen(1)}}
+  if (flip.cluster==FALSE) newres<-c(newres, V.ii[[gg]]%*%( (respermute*smp)[id==gg])) else newres<-c(newres, ( (resP*smp)[id==gg]))
 }
 
 newres<-newres[-1]
@@ -837,7 +1383,7 @@ for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
 }
 
 
-I<-1/sqrt(N)*cumsum(prvi.del.o)
+if (use.sigmoid==FALSE) I<-1/sqrt(N)*cumsum(prvi.del.o) else I<-1/sqrt(N)*sigmaI%*%prvi.del.o
 prvi.del.op<-prvi.del.p[orP]
 
 t01P<- estP
@@ -847,7 +1393,7 @@ for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
 }
 
 
-Ip<-1/sqrt(N)*cumsum(prvi.del.op)
+if (use.sigmoid==FALSE) Ip<-1/sqrt(N)*cumsum(prvi.del.op) else Ip<-1/sqrt(N)*sigmaP%*%prvi.del.op
 
 
 dva.1<-matrix(0,ncol=1,nrow=ncol(x))
@@ -891,8 +1437,8 @@ for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
 
 
 
-II<-1/sqrt( N)*cumsum(drugi.del.o)
-IIp<-1/sqrt( N)*cumsum(drugi.del.op)
+if (use.sigmoid==FALSE) II<-1/sqrt( N)*cumsum(drugi.del.o) else II<-1/sqrt( N)*sigmaI%*%drugi.del.o
+if (use.sigmoid==FALSE) IIp<-1/sqrt( N)*cumsum(drugi.del.op) else IIp<-1/sqrt( N)*sigmaP%*%drugi.del.op
 
 WsI2[[iiii]]<-I-II
 WsP2[[iiii]]<-Ip-IIp
@@ -915,7 +1461,7 @@ prvi.del.op[ig]<-sum(prvi.del.op[ig])/length(ig)
 }
 
 
-Ip<-1/sqrt(N)*cumsum(prvi.del.op)
+if (use.sigmoid==FALSE) Ip<-1/sqrt(N)*cumsum(prvi.del.op) else Ip<-1/sqrt(N)*sigmaPS%*%prvi.del.op
 
 
 
@@ -928,7 +1474,7 @@ drugi.del.op[ig]<-sum(drugi.del.op[ig])/length(ig)
 }
 
 
-IIp<-1/sqrt( N)*cumsum(drugi.del.op)
+if (use.sigmoid==FALSE) IIp<-1/sqrt( N)*cumsum(drugi.del.op) else IIp<-1/sqrt( N)*sigmaPS%*%drugi.del.op
 
 WsP21[[iiii]]<-Ip-IIp
 estSm[[iiii]]<-estS
@@ -952,11 +1498,12 @@ for (iiii in 1:M){
 
 if (verbose) print(paste("Iteration: ",iiii,sep=""))
 
-smp<-sample(c(-1,1),size=sum(n),replace=TRUE)
+if (flip.cluster==FALSE) {if (use.normal==FALSE) {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=nrow(x),replace=TRUE) else smp<-my.mammen(nrow(x)) } else smp<-rnorm(nrow(x))}
 
 ys<-NA
 for (gg in 1:N){
-ys<-c(ys,estP[id==gg]+  V.ii[[gg]]%*%( (respermute*smp)[id==gg]))
+  if (flip.cluster==TRUE) {if (use.normal==TRUE) smp<-rnorm(1) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=1) else smp<-my.mammen(1)}}
+  if (flip.cluster==FALSE) ys<-c(ys,estP[id==gg]+  V.ii[[gg]]%*%( (respermute*smp)[id==gg])) else ys<-c(ys,estP[id==gg]+  ( (resP*smp)[id==gg]))
 }
 ys<-ys[-1]
 
@@ -967,11 +1514,45 @@ datas[,as.character(fit$call$fixed)[2]]<-ys
 
 fits<-suppressWarnings(update(fit,data=datas))
 
+if (order.by.original==FALSE&use.sigmoid==TRUE){
+
+  estI<-fitted(fits,level=1)
+  estP<-fitted(fits,level=0)
+  if (transform==TRUE){
+    estI<-trans(estI)
+    estP<-trans(estP)
+  }
+  orI<-order(estI)
+  orP<-order(estP)
 
 
+    sigmaI<-sigf(estI[orI],lambda)
+    sigmaP<-sigf(estP[orP],lambda)
+    if (!is.null(subset.fix)){
+      x.subset<-model.matrix(subset.fix, data=fit$data   )
+      cfs.fix.sub<-fixef(fits)[colnames(x.subset)]
+
+      estS<-x.subset%*%cfs.fix.sub
+
+      if (transform==TRUE){
+        estS<-trans(estS)
+      }
+      orS<-order(estS)
+        sigmaPS<-sigf(estS[orS],lambda)
+    }
+
+}
+
+if (use.sigmoid==FALSE) {
 sim.proc<-get.sim.proc(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance,subset.fix=subset.fix,order.by.original=order.by.original,or.original.fitted.I=orI,or.original.fitted.P=orP,or.original.fitted.S=orS,
 original.fitted.I=estI ,original.fitted.P=estP ,original.fitted.S=estS,
-n=n,N=N,x=x,ZZ=ZZ,id=id)
+n=n,N=N,x=x,ZZ=ZZ,id=id,transform=transform) } else {
+
+sim.proc<-get.sim.proc.sigma(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance,subset.fix=subset.fix,order.by.original=order.by.original,or.original.fitted.I=orI,or.original.fitted.P=orP,or.original.fitted.S=orS,
+                         original.fitted.I=estI ,original.fitted.P=estP ,original.fitted.S=estS,
+                         n=n,N=N,x=x,ZZ=ZZ,id=id,sigmaI=sigmaI,sigmaP=sigmaP,sigmaPS=sigmaPS,transform=transform)
+
+}
 
  WsI2[[iiii]]<-sim.proc[[1]]
  WsP2[[iiii]]<-sim.proc[[2]]
@@ -1013,11 +1594,45 @@ datas[,as.character(fit$call$fixed)[2]]<-ys
 
 fits<-suppressWarnings(update(fit,data=datas))
 
+if (order.by.original==FALSE&use.sigmoid==TRUE){
+
+  estI<-fitted(fits,level=1)
+  estP<-fitted(fits,level=0)
+  if (transform==TRUE){
+    estI<-trans(estI)
+    estP<-trans(estP)
+  }
+  orI<-order(estI)
+  orP<-order(estP)
 
 
+  sigmaI<-sigf(estI[orI],lambda)
+  sigmaP<-sigf(estP[orP],lambda)
+  if (!is.null(subset.fix)){
+    x.subset<-model.matrix(subset.fix, data=fit$data   )
+    cfs.fix.sub<-fixef(fits)[colnames(x.subset)]
+
+    estS<-x.subset%*%cfs.fix.sub
+    if (transform==TRUE){
+      estS<-trans(estS)
+         }
+
+    orS<-order(estS)
+
+    sigmaPS<-sigf(estS[orS],lambda)
+  }
+
+}
+
+if (use.sigmoid==FALSE) {
 sim.procF<-get.sim.proc.F(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance,subset.fix=subset.fix,order.by.original=order.by.original,or.original.fitted.P=orP,or.original.fitted.S=orS,
 original.fitted.P=estP ,original.fitted.S=estS,
-n=n,N=N,x=x,ZZ=ZZ,id=id)
+n=n,N=N,x=x,ZZ=ZZ,id=id,transform=transform) } else {
+
+  sim.procF<-get.sim.proc.F.sigma(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance,subset.fix=subset.fix,order.by.original=order.by.original,or.original.fitted.P=orP,or.original.fitted.S=orS,
+                            original.fitted.P=estP ,original.fitted.S=estS,
+                            n=n,N=N,x=x,ZZ=ZZ,id=id,sigmaP=sigmaP,sigmaPS=sigmaPS,transform=transform)
+}
 
 
 if (!is.null(subset.fix)) {WsP2[[iiii]]<-sim.procF[[1]];WsP21[[iiii]]<-sim.procF[[2]];estPm[[iiii]]<-sim.procF[[3]];estSm[[iiii]]<-sim.procF[[4]]} else  {WsP2[[iiii]]<-sim.procF[[1]];estPm[[iiii]]<-sim.procF[[2]] }
@@ -1027,13 +1642,17 @@ if (!is.null(subset.fix)) {WsP2[[iiii]]<-sim.procF[[1]];WsP21[[iiii]]<-sim.procF
 
 if (force.permutation.with.O==FALSE){
 
-smp<-sample(c(-1,1),size=sum(n),replace=TRUE)
+
+if (flip.cluster==FALSE) {if (use.normal==FALSE) {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=nrow(x),replace=TRUE) else smp<-my.mammen(nrow(x)) } else smp<-rnorm(nrow(x))}
 
 ys<-NA
 for (gg in 1:N){
-ys<-c(ys,estP[id==gg]+  V.ii[[gg]]%*%( (respermute*smp)[id==gg]))
+  if (flip.cluster==TRUE) {if (use.normal==TRUE) smp<-rnorm(1) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=1) else smp<-my.mammen(1)}}
+  if (flip.cluster==FALSE) ys<-c(ys,estP[id==gg]+  V.ii[[gg]]%*%( (respermute*smp)[id==gg])) else ys<-c(ys,estP[id==gg]+  ( (resP*smp)[id==gg]))
 }
 ys<-ys[-1]
+
+
 
 datas<-fit$data
 datas[,as.character(fit$call$fixed)[2]]<-ys
@@ -1041,12 +1660,45 @@ datas[,as.character(fit$call$fixed)[2]]<-ys
 
 
 fits<-suppressWarnings(update(fit,data=datas))
+if (order.by.original==FALSE&use.sigmoid==TRUE){
+
+  estI<-fitted(fits,level=1)
+  estP<-fitted(fits,level=0)
+  if (transform==TRUE){
+    estI<-trans(estI)
+    estP<-trans(estP)
+  }
+  orI<-order(estI)
+  orP<-order(estP)
+
+
+  sigmaI<-sigf(estI[orI],lambda)
+  sigmaP<-sigf(estP[orP],lambda)
+  if (!is.null(subset.fix)){
+    x.subset<-model.matrix(subset.fix, data=fit$data   )
+    cfs.fix.sub<-fixef(fits)[colnames(x.subset)]
+
+    estS<-x.subset%*%cfs.fix.sub
+    if (transform==TRUE){
+      estS<-trans(estS)
+        }
+    orS<-order(estS)
+
+    sigmaPS<-sigf(estS[orS],lambda)
+  }
 
 }
-
+}
+if (use.sigmoid==FALSE) {
 sim.procO<-get.sim.proc.O(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance, order.by.original=order.by.original,or.original.fitted.I=orI,
 original.fitted.I=estI ,
-n=n,N=N,x=x,ZZ=ZZ,id=id)
+n=n,N=N,x=x,ZZ=ZZ,id=id,transform=transform) } else {
+
+  sim.procO<-get.sim.proc.O.sigma(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance, order.by.original=order.by.original,or.original.fitted.I=orI,
+                            original.fitted.I=estI ,
+                            n=n,N=N,x=x,ZZ=ZZ,id=id,sigmaI=sigmaI,transform=transform)
+
+}
 
 WsI2[[iiii]]<-sim.procO[[1]]
 estIm[[iiii]]<-sim.procO[[2]]
@@ -1162,11 +1814,11 @@ print.gofLMM<-function(object){
 
 
 
-#######main function
+#######
 
 #' Goodness-of fit test for LMM as proposed by Pan et al.
 #'
-#' Goodness-of fit test based on cumulative sum stochastic process using the simulation approach proposed by Pan et al.
+#' Obsolete. Goodness-of fit test based on cumulative sum stochastic process using the simulation approach proposed by Pan et al. Note: could equivalently obtained from \code{gof.lmm(...,order.by.original=TRUE,type="simulation",flip.cluster=TRUE,use.sigmoid = FALSE,transform=FALSE,...)}
 
 #'
 #' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N !
@@ -1177,6 +1829,8 @@ print.gofLMM<-function(object){
 #' @param  subset.fix Two-sided formula. If nonnull, the process $W^{F^s}$ will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process $W^{F^s}$ is not constructed.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
 #' @param verbose Logical. Print the current status of the test. Can slow down the algorithm, but it can make it feel faster. Defaults to \code{FALSE}.
+#' @param use.normal Lolgical. Use normal random variables instead of sign-flip. Defaultes to \code{FALSE}.
+#' @param use.mammen Logical. Use Mammen's 2 point distribution instead of sign-flip. Not in use when \code{use.normal=TRUE}. Defaults to \code{FALSE}.
 #' @return An object of class \code{"gofLMM"} for which \code{plot} and \code{summary} functions are available.
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
 #' @seealso \code{\link{gof.lmm}}, \code{\link{plot.gofLMM}} and  \code{\link{summary.gofLMM}}
@@ -1242,7 +1896,7 @@ print.gofLMM<-function(object){
 #' summary.gofLMM(fit.gof.pan)
 
 
-gof.lmm.pan<-function(fit,residuals=c("individual","cluster"),std.type=c(1,2),use.correction.for.imbalance=FALSE,subset.fix=NULL,M=100,verbose=FALSE){
+gof.lmm.pan<-function(fit,residuals=c("individual","cluster"),std.type=c(1,2),use.correction.for.imbalance=FALSE,subset.fix=NULL,M=100,verbose=FALSE,use.normal=FALSE,use.mammen=FALSE,use.sigmoid=FALSE,lambda=0.5){
 
   ####checks, warnings
 
@@ -1443,8 +2097,8 @@ gof.lmm.pan<-function(fit,residuals=c("individual","cluster"),std.type=c(1,2),us
 
       newres<-NA
       for (gg in 1:N){
-        smp<-rnorm(1)
-        newres<-c(newres,  (respermute*smp)[id==gg])
+        if (use.normal==TRUE) smp<-rnorm(1) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=1) else smp<-my.mammen(1)}
+        newres<-c(newres,  (resP*smp)[id==gg])
       }
 
       newres<-newres[-1]
@@ -3120,7 +3774,7 @@ gof.lmm.sim.orderbyoriginal.type2<-function(fit,std.type=c(1,2),use.correction.f
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
 #' @return KS and CvM pvalues for Pan, Simulation, sign-flip and permutations.
 #' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
-#' @details no colesky when creating new outcome.
+#' @details no colesky when creating new outcome. in Pan I aslo use -1,1 instead of N as before.
 #' @seealso \code{\link{gof.lmm.pan}} and \code{\link{gof.lmm}}
 #' @export
 #' @examples
@@ -3391,7 +4045,8 @@ gof.lmm.sim.orderbyoriginal.type2.v2<-function(fit,std.type=c(1,2),use.correctio
 
     newres<-NA
     for (gg in 1:N){
-      smp<-rnorm(1)
+      #smp<-rnorm(1)
+      smp<-sample(c(-1,1),size=1)
       newres<-c(newres, ( (resP*smp)[id==gg]))
     }
 
@@ -3655,6 +4310,552 @@ gof.lmm.sim.orderbyoriginal.type2.v2<-function(fit,std.type=c(1,2),use.correctio
 
 
 
+
+
+
+
+#######sim function
+
+#' Goodness-of fit test for LMM, only Pan and SF, faster, ordering the residuals by the original fitted values also for the SF approach. In SF approach the same random number is applied to all subjects within the cluste (as in Pan and Lin approach).
+#'
+#' Goodness-of fit test based on cumulative sum stochastic process. Used for simulations. Returns only KS and CvM p-values for 2 methods (Pan, SF) and individual as well as cluster specific residuals. Fs not implemented here.
+
+#'
+#' @param fit The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}; ID variable must be numeric and ordered from 1:N !.
+#' @param std.type Type of standardization to be used for the residuals when constructing the process.
+#' Currently implemeneted options are \code{1} and \code{2} for $S_i=\hat\sigma^{-1/2}I_{n_i}$ and $S_i=\hat{V}_i^{-1/2}$.
+#' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
+#' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
+#' @return KS and CvM pvalues for Pan, Simulation, sign-flip and permutations.
+#' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
+#' @details no colesky when creating new outcome. in Pan and sign-flip Mammen's 2 point distributrion is used instead of -1,1 or N as in other sim functions.
+#' @seealso \code{\link{gof.lmm.pan}} and \code{\link{gof.lmm}}
+#' @export
+#' @examples
+#' # simulate some data:
+#' N=50
+#' set.seed(1)
+#' n<-floor(runif(N,min=1,max=15)) #imbalanced
+#' betas<-c(1,1,1,15) #don't change! #the last one is only used whe omit.important.predictor=TRUE
+#' norm.eps<-FALSE
+#' shape=0.5
+#' scale=1
+#' norm.re.intercept<-FALSE
+#' shape.re.intercept=0.5
+#' scale.re.intercept=1
+#' norm.re.slope<-FALSE
+#' shape.re.slope=0.5
+#' scale.re.slope=1
+#' sim.re.slope=FALSE
+#' over.parameterized.model=FALSE #i.e. fit a variable which is not used when generating the data
+#' omit.important.predictor=FALSE
+#' yy<-NA
+#' x22<-NA
+#' id<-NA
+#' x1<-NA
+#' for (gg in 1:N){
+#'
+#'   id<-c(id,rep(gg,each=n[gg]))
+#'   x11<-rep(rbinom(1,size=1,prob=0.4),each=n[gg])
+#'   x1<-c(x1,x11)
+#'
+#'   if (norm.re.intercept==TRUE) re.int<-rnorm(1,sd=sqrt(2)) else re.int<-rgamma(1,shape=shape.re.intercept,scale=scale.re.intercept)-shape.re.intercept*scale.re.intercept
+#'
+#'   b<-rep(re.int,each=n[gg])
+#'
+#'   if (norm.re.slope==TRUE) re.slope<-rnorm(1,sd=sqrt(1)) else re.slope<-rgamma(1,shape=shape.re.slope,scale=scale.re.slope)-shape.re.slope*scale.re.slope
+#'
+#'   b2<-rep(re.slope,each=n[gg])
+#'   x2<-1:n[gg]
+#'   x4<-runif(n[gg])
+#'
+#'   if (norm.eps==TRUE) eps<-rnorm(n[gg]) else eps<-rgamma(n[gg],shape=shape,scale=scale)-shape*scale
+#'
+#'   if (sim.re.slope==TRUE) {
+#'     if (omit.important.predictor==FALSE) y<-betas[1]+betas[2]*x2+betas[3]*(x11*x2)+b+b2*x2+eps else y<-betas[1]+betas[2]*x2+betas[3]*(x11*x2)+b+b2*x2+eps+betas[4]*x4
+#'   } else {
+#'     if (omit.important.predictor==FALSE) y<-betas[1]+betas[2]*x2+betas[3]*(x11*x2)+b+eps else y<-betas[1]+betas[2]*x2+betas[3]*(x11*x2)+b+eps+betas[4]*x4
+#'   }
+#'   yy<-c(yy,y)
+#'  x22<-c(x22,x2)
+#' }
+#' yy<-yy[-1]
+#' x22<-x22[-1]
+#' x1<-x1[-1]
+#' id<-id[-1]
+#' x4<-runif(sum(n))
+#' aids.art<-data.frame(ptnt=id,outcome=yy,x1=x1,x2=x22,x4=x4)
+#' library(nlme)
+#' fit<-lme(fixed=outcome~ x2+x1:x2, data=aids.art, random=~x2|ptnt,control=lmeControl( returnObject = TRUE),method="REML" )
+#' gof.lmm.sim.orderbyoriginal.type2.mammen(fit,std.type=2,use.correction.for.imbalance=FALSE,M=25,verbose=TRUE)
+
+
+gof.lmm.sim.orderbyoriginal.type2.mammen<-function(fit,std.type=c(1,2),use.correction.for.imbalance=FALSE,M=100,verbose=FALSE){
+
+
+
+
+  id<-fit$data[,names(formula(fit$modelStruct$reStr))]
+
+  N<-length(unique(id))
+  n<-table(id)
+
+
+
+  x<-model.matrix(fit, data=fit$data   )
+
+  ZZ<- model.matrix(formula(fit$modelStruct$reStr)[[1]],data=fit$data)
+
+
+
+  ###start gof
+
+
+
+  resI<-residuals(fit, level = 1  )
+
+
+  resP<-residuals(fit, level = 0  )
+
+  estI<-fitted(fit,level=1)
+  estP<-fitted(fit,level=0)
+
+  orI<-order(estI)
+  orP<-order(estP)
+
+
+
+  vc<-VarCorr(fit)
+  sigma.est<-as.numeric(vc[nrow(vc),1])
+
+  D<-getVarCov(fit)
+
+  beta.f<-fixef(fit)
+
+  V<-list()
+  V.i<-list()
+  Z<-list()
+
+  H<-matrix(0,ncol=ncol(x),nrow=ncol(x))
+  for (gg in 1:N){
+    if (ncol(ZZ)==1) Z[[gg]]<-matrix(ZZ[id==gg,],ncol=1) else Z[[gg]]<-ZZ[id==gg,]
+    if (n[gg]==1) Z[[gg]]<-matrix(Z[[gg]],nrow=1)
+    I<-diag(rep(1),n[[gg]])
+    V[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]])+sigma.est*I
+    V.i[[gg]]<-V[[gg]]%^%(-1)
+    if (n[gg]!=1) H<-H+t(x[id==gg,])%*%V.i[[gg]]%*%x[id==gg,] else H<-H+matrix(x[id==gg,],ncol=1)%*%V.i[[gg]]%*%x[id==gg,]
+  }
+
+  H.i<-solve(H)
+
+
+  J.ind<-list()
+  J.clust<-list()
+  A<-list()
+  B<-list()
+
+  res.i.c.ind<-resI
+  res.i.c.clust<-resP
+
+  for (gg in 1:N){
+
+
+    if (n[gg]!=1) A[[gg]]<-sigma.est*V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%t(x[id==gg,]) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]]) else A[[gg]]<-sigma.est*V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%matrix(x[id==gg,],ncol=1) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]])
+
+    if (n[gg]!=1) B[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]]) %*%V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%t(x[id==gg,]) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]]) else B[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]]) %*%V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%matrix(x[id==gg,],ncol=1) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]])
+
+
+
+    I<-diag(rep(1,n[gg]))
+
+    J.ind[[gg]]<-sigma.est*V.i[[gg]]-(A[[gg]])%*%ginv(B[[gg]])%*% Z[[gg]]%*%D%*%t(Z[[gg]])%*%V.i[[gg]]
+    J.clust[[gg]]<-I-(A[[gg]]+B[[gg]])%*%ginv(B[[gg]])%*% Z[[gg]]%*%D%*%t(Z[[gg]])%*%V.i[[gg]]
+
+
+    res.i.c.ind[id==gg]<- J.ind[[gg]]%*% resI[id==gg]
+    res.i.c.clust[id==gg]<- J.clust[[gg]]%*% resP[id==gg]
+
+
+
+  }
+
+
+
+  V.ii.inv<-list()
+  V.ii<-list()
+  S.i<-list()
+
+  res.i.c2.ind<-resI
+  res.i.c2.clust<-resP
+
+  respermute<-NA
+  resIst.ind<-NA
+  resPst.ind<-NA
+  resIst.clust<-NA
+  resPst.clust<-NA
+  for (gg in 1:N){
+    I<-diag(rep(1,n[gg]))
+
+    V.ii.inv[[gg]]<-V[[gg]]%^%(-0.5)
+    V.ii[[gg]]<-V[[gg]]%^%(0.5)
+
+    resPMp<-matrix(resP[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMp2<-V.ii.inv[[gg]]%*%resPMp
+
+    respermute<-c(respermute,resPMp2)
+
+    if (std.type==2) S.i[[gg]]<-V.ii.inv[[gg]] else S.i[[gg]]<-  1/sqrt( sigma.est )*diag(rep(1,n[gg]))
+    if (use.correction.for.imbalance==TRUE) S.i[[gg]]<-S.i[[gg]]/sqrt(n[gg])
+
+    resPMpC<-matrix(res.i.c.ind[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2<-S.i[[gg]]%*%resPMpC
+    resPMpC2<-resPMpC2
+
+    resIst.ind<-c(resIst.ind,resPMpC2)
+
+    resPMpC<-matrix(res.i.c.clust[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2<-S.i[[gg]]%*%resPMpC
+    resPMpC2<-resPMpC2
+
+    resIst.clust<-c(resIst.clust,resPMpC2)
+
+    resPMpCP<-matrix(res.i.c2.ind[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2P<-S.i[[gg]]%*%resPMpCP
+    resPMpC2P<-resPMpC2P
+
+    resPst.ind<-c(resPst.ind,resPMpC2P)
+
+    resPMpCP<-matrix(res.i.c2.clust[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2P<-S.i[[gg]]%*%resPMpCP
+    resPMpC2P<-resPMpC2P
+
+    resPst.clust<-c(resPst.clust,resPMpC2P)
+  }
+
+  respermute<-respermute[-1]
+  resIst.ind<-resIst.ind[-1]
+  resPst.ind<-resPst.ind[-1]
+  resIst.clust<-resIst.clust[-1]
+  resPst.clust<-resPst.clust[-1]
+
+  resoI2<-resIst.ind[orI]
+  t01<- estI
+
+  for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+    ig<-which(round(t01[orI],10)==round(ii,10))
+    resoI2[ig]<-sum(resoI2[ig])/length(ig)
+  }
+
+  WI2.ind<-1/sqrt(N )*cumsum(resoI2)
+
+  resoP2<-resPst.ind[orP]
+  t01P<- estP
+  for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+    ig<-which(round(t01P[orP],10)==round(ii,10))
+    resoP2[ig]<-sum(resoP2[ig])/length(ig)
+  }
+
+  WP2.ind<-1/sqrt(N )*cumsum(resoP2)
+
+
+
+  resoI2<-resIst.clust[orI]
+  t01<- estI
+
+  for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+    ig<-which(round(t01[orI],10)==round(ii,10))
+    resoI2[ig]<-sum(resoI2[ig])/length(ig)
+  }
+
+  WI2.clust<-1/sqrt(N )*cumsum(resoI2)
+
+  resoP2<-resPst.clust[orP]
+  t01P<- estP
+  for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+    ig<-which(round(t01P[orP],10)==round(ii,10))
+    resoP2[ig]<-sum(resoP2[ig])/length(ig)
+  }
+
+  WP2.clust<-1/sqrt(N )*cumsum(resoP2)
+
+
+
+  ####start sim/sign/permuted proces
+
+  ###simulation, Pan approach
+
+
+  WsP2.ind<- WsI2.ind <-list()
+
+  WsP2.clust<- WsI2.clust <-list()
+
+
+  for (iiii in 1:M){
+
+    if (verbose) print(paste("Simulation Pan: ",iiii,sep=""))
+
+
+
+
+    newres<-NA
+    for (gg in 1:N){
+      #smp<-rnorm(1)
+      smp<-my.mammen(1)
+      newres<-c(newres, ( (resP*smp)[id==gg]))
+    }
+
+    newres<-newres[-1]
+
+
+
+    ##prvi del procesa
+
+    prvi.del.p.ind<-prvi.del.ind<-prvi.del.p.clust<-prvi.del.clust<-NA
+
+    for (gg in 1:N){
+
+      prvi.del.ind<-c(prvi.del.ind,S.i[[gg]]%*%J.ind[[gg]]%*%(newres[id==gg]))
+      prvi.del.clust<-c(prvi.del.clust,S.i[[gg]]%*%J.clust[[gg]]%*%(newres[id==gg]))
+
+      prvi.del.p.clust<-c(prvi.del.p.clust,S.i[[gg]]%*%(newres[id==gg]))
+      prvi.del.p.ind<-c(prvi.del.p.ind,sigma.est*S.i[[gg]]%*%V.i[[gg]]%*%(newres[id==gg]))
+
+    }
+
+    prvi.del.ind<-prvi.del.ind[-1]
+    prvi.del.p.ind<-prvi.del.p.ind[-1]
+
+    prvi.del.clust<-prvi.del.clust[-1]
+    prvi.del.p.clust<-prvi.del.p.clust[-1]
+
+    prvi.del.o<-prvi.del.ind[orI]
+
+    t01<- estI
+
+    for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+      ig<-which(round(t01[orI],10)==round(ii,10))
+      prvi.del.o[ig]<-sum(prvi.del.o[ig])/length(ig)
+    }
+
+
+    Iind<-1/sqrt(N)*cumsum(prvi.del.o)
+
+    prvi.del.o<-prvi.del.clust[orI]
+
+    t01<- estI
+
+    for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+      ig<-which(round(t01[orI],10)==round(ii,10))
+      prvi.del.o[ig]<-sum(prvi.del.o[ig])/length(ig)
+    }
+
+
+    Iclust<-1/sqrt(N)*cumsum(prvi.del.o)
+
+    prvi.del.op<-prvi.del.p.ind[orP]
+
+    t01P<- estP
+    for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+      ig<-which(round(t01P[orP],10)==round(ii,10))
+      prvi.del.op[ig]<-sum(prvi.del.op[ig])/length(ig)
+    }
+
+
+    Ipind<-1/sqrt(N)*cumsum(prvi.del.op)
+
+    prvi.del.op<-prvi.del.p.clust[orP]
+
+    t01P<- estP
+    for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+      ig<-which(round(t01P[orP],10)==round(ii,10))
+      prvi.del.op[ig]<-sum(prvi.del.op[ig])/length(ig)
+    }
+
+
+    Ipclust<-1/sqrt(N)*cumsum(prvi.del.op)
+
+    dva.1<-matrix(0,ncol=1,nrow=ncol(x))
+
+    for (gg  in 1:N){
+
+      if (n[gg]!=1) dva.1<-dva.1+  t(x[id==gg,])%*%V.i[[gg]]%*%(newres[id==gg]) else dva.1<-dva.1+  matrix(x[id==gg,],ncol=1)%*%V.i[[gg]]%*%(newres[id==gg])
+
+    }
+
+    drugi.del.p.ind<-drugi.del.ind<-drugi.del.p.clust<-drugi.del.clust<-NA
+
+    for (gg in 1:N){
+
+      drugi.del.ind<-c(drugi.del.ind,S.i[[gg]]%*%J.ind[[gg]]%*%x[id==gg,]%*%H.i%*%dva.1)
+      drugi.del.clust<-c(drugi.del.clust,S.i[[gg]]%*%J.clust[[gg]]%*%x[id==gg,]%*%H.i%*%dva.1)
+
+      drugi.del.p.clust<-c(drugi.del.p.clust,S.i[[gg]]%*%x[id==gg,]%*%H.i%*%dva.1)
+      drugi.del.p.ind<-c(drugi.del.p.ind,sigma.est*S.i[[gg]]%*%V.i[[gg]]%*%x[id==gg,]%*%H.i%*%dva.1)
+
+
+    }
+
+    drugi.del.ind<-drugi.del.ind[-1]
+    drugi.del.p.ind<-drugi.del.p.ind[-1]
+
+    drugi.del.clust<-drugi.del.clust[-1]
+    drugi.del.p.clust<-drugi.del.p.clust[-1]
+
+    drugi.del.o<-drugi.del.ind[orI]
+
+
+    t01<- estI
+
+    for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+      ig<-which(round(t01[orI],10)==round(ii,10))
+      drugi.del.o[ig]<-sum(drugi.del.o[ig])/length(ig)
+    }
+
+
+    drugi.del.op<-drugi.del.p.ind[orP]
+    t01P<- estP
+    for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+      ig<-which(round(t01P[orP],10)==round(ii,10))
+      drugi.del.op[ig]<-sum(drugi.del.op[ig])/length(ig)
+    }
+
+
+
+    IIind<-1/sqrt( N)*cumsum(drugi.del.o)
+    IIpind<-1/sqrt( N)*cumsum(drugi.del.op)
+
+    drugi.del.o<-drugi.del.clust[orI]
+
+
+    t01<- estI
+
+    for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+      ig<-which(round(t01[orI],10)==round(ii,10))
+      drugi.del.o[ig]<-sum(drugi.del.o[ig])/length(ig)
+    }
+
+
+    drugi.del.op<-drugi.del.p.clust[orP]
+    t01P<- estP
+    for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+      ig<-which(round(t01P[orP],10)==round(ii,10))
+      drugi.del.op[ig]<-sum(drugi.del.op[ig])/length(ig)
+    }
+
+
+
+    IIclust<-1/sqrt( N)*cumsum(drugi.del.o)
+    IIpclust<-1/sqrt( N)*cumsum(drugi.del.op)
+
+    WsI2.ind[[iiii]]<-Iind-IIind
+    WsP2.ind[[iiii]]<-Ipind-IIpind
+
+    WsI2.clust[[iiii]]<-Iclust-IIclust
+    WsP2.clust[[iiii]]<-Ipclust-IIpclust
+
+
+
+
+
+  }
+
+  res.sim.ind<-c(
+    p.val(  KS(WI2.ind),unlist(lapply(WsI2.ind,KS)) ),
+    p.val(  CvM(WI2.ind),unlist(lapply(WsI2.ind,CvM)) ),
+
+    p.val(  KS(WP2.ind),unlist(lapply(WsP2.ind,KS)) ),
+    p.val(  CvM(WP2.ind),unlist(lapply(WsP2.ind,CvM)) )
+  )
+
+  res.sim.clust<-c(
+    p.val(  KS(WI2.clust),unlist(lapply(WsI2.clust,KS)) ),
+    p.val(  CvM(WI2.clust),unlist(lapply(WsI2.clust,CvM)) ),
+
+    p.val(  KS(WP2.clust),unlist(lapply(WsP2.clust,KS)) ),
+    p.val(  CvM(WP2.clust),unlist(lapply(WsP2.clust,CvM)) )
+  )
+
+
+
+
+
+
+
+
+  WsP2.ind<- WsI2.ind <-list()
+  WsP2.clust<- WsI2.clust <-list()
+
+  for (iiii in 1:M){
+
+    if (verbose) print(paste("Sign-flip: ",iiii,sep=""))
+
+
+
+    ys<-NA
+    for (gg in 1:N){
+      smp<-my.mammen(1)
+      ys<-c(ys,estP[id==gg]+  ( (resP*smp)[id==gg]))
+    }
+    ys<-ys[-1]
+
+    datas<-fit$data
+    datas[,as.character(fit$call$fixed)[2]]<-ys
+
+
+
+    fits<-suppressWarnings(update(fit,data=datas))
+
+
+
+    sim.proc<-get.sim.proc.fast.ororg(fits, std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance,
+                                      n=n,N=N,x=x,ZZ=ZZ,id=id,fittedI=estI, or.fittedI=orI,fittedP=estP,or.fittedP=orP)
+
+    WsI2.ind[[iiii]]<-sim.proc[[1]]
+    WsP2.ind[[iiii]]<-sim.proc[[2]]
+
+
+    WsI2.clust[[iiii]]<-sim.proc[[3]]
+    WsP2.clust[[iiii]]<-sim.proc[[4]]
+
+
+  } #end for
+
+
+  res.sign.ind<-c(
+    p.val(  KS(WI2.ind),unlist(lapply(WsI2.ind,KS)) ),
+    p.val(  CvM(WI2.ind),unlist(lapply(WsI2.ind,CvM)) ),
+
+    p.val(  KS(WP2.ind),unlist(lapply(WsP2.ind,KS)) ),
+    p.val(  CvM(WP2.ind),unlist(lapply(WsP2.ind,CvM)) )
+  )
+  res.sign.clust<-c(
+    p.val(  KS(WI2.clust),unlist(lapply(WsI2.clust,KS)) ),
+    p.val(  CvM(WI2.clust),unlist(lapply(WsI2.clust,CvM)) ),
+
+    p.val(  KS(WP2.clust),unlist(lapply(WsP2.clust,KS)) ),
+    p.val(  CvM(WP2.clust),unlist(lapply(WsP2.clust,CvM)) )
+  )
+
+
+
+
+
+  res.ind<-c(res.sim.ind,   res.sign.ind)
+  res.clust<-c(res.sim.clust,res.sign.clust)
+
+  names(res.ind)<-names(res.clust)<-c(
+    paste("Sim",c("O.KS","O.CvM","F.KS","F.CvM"),sep=":"),
+    paste("Sign",c("O.KS","O.CvM","F.KS","F.CvM"),sep=":")
+  )
+
+  resm.ind<-matrix(res.ind,ncol=4,byrow=T)
+  resm.clust<-matrix(res.clust,ncol=4,byrow=T)
+
+
+  colnames(resm.ind)<-colnames(resm.clust)<-c("O.KS","O.CvM","F.KS","F.CvM")
+  rownames(resm.ind)<-rownames(resm.clust)<-c("Simulation.Pan","sign.flip")
+  list(results.ind=res.ind,results.matrix.ind=resm.ind,results.clust=res.clust,results.matrix.clust=resm.clust)
+} #end of function
 
 
 
@@ -6900,3 +8101,81 @@ gof.lmm.O.test.norefit<-function(fit,residuals="individual",std.type=c(1,2),use.
 
 }
 
+
+
+#' Goodness-of fit test for LMM, function to simulate data
+#'
+#' This function can be used to simulate (balanced) cluster data as used in the simulation study of Peterlin et al. See the paper for details.
+
+#'
+#' @param N number of clusters
+#' @param n number of subjects per cluster (the same for all clusters)
+#' @param betas Vector of true regression coefficients for the fixed effects
+#' @param norm.eps Logical, if TRUE the errors are simulated from a (zero mean) normal distribution with variance \code{var.eps}, otherwise from a (centered) gama with parameters \code{shape} and \code{scale}
+#' @param var.eps see above
+#' @param shape see above
+#' @param scale see above
+#' @param norm.re.intercept Logical, if TRUE the random intercepts are simulated from a (zero mean) normal distribution with variance \code{var.re.intercept}, otherwise from a (centered) gama with parameters \code{shape.re.intercept} and \code{scale.re.intercept}
+#' @param var.re.intercept see above
+#' @param shape.re.intercept see above
+#' @param scale.re.intercept see above
+#' @param sim.re.slope Logical. If TRUE random slopes are simulated.
+#' @param norm.re.slope Logical, if TRUE the random slopes are simulated from a (zero mean) normal distribution with variance \code{var.re.slope}, otherwise from a (centered) gama with parameters \code{shape.re.slope} and \code{scale.re.slope}
+#' @param var.re.slope see above
+#' @param shape.re.slope see above
+#' @param scale.re.slope see above
+#' @param sim.x2.qdr Logical. If TRUE the square of X2 is included in the true (correct) fixed effects design matrix.
+#' @param b.qdr True beta coefficient associated with the square of X2
+#' @author Rok Blagus, \email{rok.blagus@@mf.uni-lj.si}
+#' @seealso \code{\link{gof.lmm}}
+#' @export
+
+
+sim.data.cluster<-function(N,n,betas, norm.eps,var.eps=NULL,shape=NULL,scale=NULL,norm.re.intercept,var.re.intercept=NULL,shape.re.intercept=NULL,scale.re.intercept=NULL,sim.re.slope,
+                           norm.re.slope=NULL,var.re.slope=NULL,shape.re.slope=NULL,scale.re.slope=NULL,sim.x2.qdr=FALSE,b.qdr=NULL){
+
+
+
+  yy<-NA
+
+  id<-NA
+  x1<-NA
+  x2<-NA
+  for (gg in 1:N){
+
+    id<-c(id,rep(gg,each=n[gg]))
+    x11<-runif(n[gg])
+    x1<-c(x1,x11)
+
+    x22<-runif(n[gg])
+    x2<-c(x2,x22)
+    if (norm.re.intercept==TRUE) re.int<-rnorm(1,sd=sqrt(var.re.intercept)) else re.int<-rgamma(1,shape=shape.re.intercept,scale=scale.re.intercept)-shape.re.intercept*scale.re.intercept
+
+    b<-rep(re.int,each=n[gg])
+
+
+
+    if (norm.eps==TRUE) eps<-rnorm(n[gg],sd=sqrt(var.eps)) else eps<-rgamma(n[gg],shape=shape,scale=scale)-shape*scale
+
+    if (sim.re.slope==TRUE) {
+      if (norm.re.slope==TRUE) re.slope<-rnorm(1,sd=sqrt(var.re.slope)) else re.slope<-rgamma(1,shape=shape.re.slope,scale=scale.re.slope)-shape.re.slope*scale.re.slope
+
+      b2<-rep(re.slope,each=n[gg])
+
+      if (sim.x2.qdr==FALSE)   y<-betas[1]+betas[2]*x11+betas[3]*x22+b+b2*x11+eps  else y<-betas[1]+betas[2]*x11+betas[3]*x22+b+b2*x11+eps+ b.qdr*x11**2
+    } else {
+      if (sim.x2.qdr==FALSE) y<-betas[1]+betas[2]*x11+betas[3]*x22+b+eps   else y<-betas[1]+betas[2]*x11+betas[3]*x22+b+eps+ b.qdr*x11**2
+
+    }
+    yy<-c(yy,y)
+
+  }
+  yy<-yy[-1]
+  x2<-x2[-1]
+  x1<-x1[-1]
+  id<-id[-1]
+  df<-data.frame(id=id,y=yy,x1=x1,x2=x2)
+
+  df
+
+}

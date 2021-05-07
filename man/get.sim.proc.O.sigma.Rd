@@ -4,9 +4,22 @@
 \alias{get.sim.proc.O.sigma}
 \title{Internal function}
 \usage{
-get.sim.proc.O.sigma(fit, residuals, std.type,
-  use.correction.for.imbalance, order.by.original, or.original.fitted.I,
-  original.fitted.I, n, N, x, ZZ, id, sigmaI, transform)
+get.sim.proc.O.sigma(
+  fit,
+  residuals,
+  std.type,
+  use.correction.for.imbalance,
+  order.by.original,
+  or.original.fitted.I,
+  original.fitted.I,
+  n,
+  N,
+  x,
+  ZZ,
+  id,
+  sigmaI,
+  transform
+)
 }
 \description{
 Internal function

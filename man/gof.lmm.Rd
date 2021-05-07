@@ -4,13 +4,24 @@
 \alias{gof.lmm}
 \title{Goodness-of fit test for LMM}
 \usage{
-gof.lmm(fit, residuals = c("individual", "cluster"), std.type = c(1,
-  2), use.correction.for.imbalance = FALSE, subset.fix = NULL,
-  type = c("simulation", "sign.flip", "permutation"), M = 100,
-  order.by.original = TRUE, force.permutation.with.O = FALSE,
-  verbose = FALSE, flip.cluster = TRUE, use.normal = FALSE,
-  use.mammen = FALSE, use.sigmoid = FALSE, lambda = 0.5,
-  transform = TRUE)
+gof.lmm(
+  fit,
+  residuals = c("individual", "cluster"),
+  std.type = c(1, 2),
+  use.correction.for.imbalance = FALSE,
+  subset.fix = NULL,
+  type = c("simulation", "sign.flip", "permutation"),
+  M = 100,
+  order.by.original = TRUE,
+  force.permutation.with.O = FALSE,
+  verbose = FALSE,
+  flip.cluster = TRUE,
+  use.normal = FALSE,
+  use.mammen = FALSE,
+  use.sigmoid = FALSE,
+  lambda = 0.5,
+  transform = TRUE
+)
 }
 \arguments{
 \item{fit}{The result of a call to \code{"nlme"}. The model must be fitted with \code{control=lmeControl( returnObject = TRUE)} and \code{keep.data=TRUE}. An error message is returned otherwise. ID variable must be numeric and ordered from 1:N ! Canno't use transofrmations of the outcome variable directly in the formula i.e. lme(sqrt(y)~x) will return p=1!}

@@ -4,9 +4,21 @@
 \alias{get.sim.proc.O.test.type2}
 \title{Internal function}
 \usage{
-get.sim.proc.O.test.type2(fit, residuals, std.type,
-  use.correction.for.imbalance, n, N, x, ZZ, id, est.original, or.original,
-  A, B)
+get.sim.proc.O.test.type2(
+  fit,
+  residuals,
+  std.type,
+  use.correction.for.imbalance,
+  n,
+  N,
+  x,
+  ZZ,
+  id,
+  est.original,
+  or.original,
+  A,
+  B
+)
 }
 \description{
 Internal function
