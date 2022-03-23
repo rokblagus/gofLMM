@@ -1007,9 +1007,10 @@ get.sim.proc.F.sigma<-function(fit, residuals ,std.type ,use.correction.for.imba
 #' @param residuals Residuals to be used when constructing the process. Possible values are \code{"individual"} and \code{"cluster"} for \textit{individual} and \textit{cluster-speciffic} residuals, respectively.
 #' @param std.type Type of standardization to be used for the residuals when constructing the process.
 #' Currently implemeneted options are \code{1} and \code{2} for S_i=\hat\sigma^{-1/2}I_{n_i} and $S_i=\hat{V}_i^{-1/2}$.
+#' @param ind.RE logical, are fitted REs assumed to be independent? Needed to correctly recover D when using lme with independent random effects.
 #' @param use.correction.for.imbalance Logical. use $n_i^{-1/2} S_i$ when standardizing the residuals. Defaults to \code{FALSE}.
 #' @param  subset.fix Two-sided formula. If nonnull, the process $W^{F^s}$ will be constructed using the variables defined on the RHS of the formula. Deafults to \code{NULL} and the process $W^{F^s}$ is not constructed.
-#' @param type How to obtain the processes $W^m$. Possible values are \code{"simulation"} for the simulation approach, \code{"sign.flip"} for the sign-flipping approach and \code{"permutation"} for the permutation approach. When using \code{type="permutation"}, sign-flipping will be used by default if not specified otherwise by the argument \code{force.permutation.with.O}.
+#' @param type How to obtain the processes $W^m$. Possible values are \code{"simulation"} for the simulation approach (model is not refitted), \code{"sign.flip"} for the sign-flipping approach (model is refitted) and \code{"permutation"} for the permutation approach (model is refitted). When using \code{type="permutation"}, sign-flipping will be used by default if not specified otherwise by the argument \code{force.permutation.with.O}. One can use normal, SF and Mammen with option "simulation" by specifying use.normal and use.mammen, see below.
 #' @param M Number of random simulations/sign-flipps/permutations. Defaults to \code{100}.
 #' @param order.by.original Logical. Should the residuals in the the processes $W^m$ be ordered by the original fitted values? Defaults to \code{TRUE}.
 #' Makes sense only for \code{type="sign.flip"} and \code{type="permutation"} since when \code{type="simulation"} the ordering is always based on the original predictions.
@@ -1111,13 +1112,13 @@ get.sim.proc.F.sigma<-function(fit, residuals ,std.type ,use.correction.for.imba
 
 
 
-gof.lmm<-function(fit,residuals=c("individual","cluster"),std.type=c(1,2),use.correction.for.imbalance=FALSE,subset.fix=NULL,type=c("simulation","sign.flip","permutation"),M=100,order.by.original=TRUE,force.permutation.with.O=FALSE,verbose=FALSE,flip.cluster=TRUE,use.normal=FALSE,use.mammen=FALSE,use.sigmoid=FALSE,lambda=0.5,transform=TRUE){
+gof.lmm<-function(fit,residuals=c("individual","cluster"),ind.RE=FALSE,std.type=c(1,2),use.correction.for.imbalance=FALSE,subset.fix=NULL,type=c("simulation","sign.flip","permutation"),M=100,order.by.original=TRUE,force.permutation.with.O=FALSE,verbose=FALSE,flip.cluster=TRUE,use.normal=FALSE,use.mammen=FALSE,use.sigmoid=FALSE,lambda=0.5,transform=TRUE){
 
 ####checks, warnings
 
 if (is.null(fit$data)) stop("Model was fitted with keep.data=FALSE. Use keep.data=TRUE.")
 
-if (verbose) cat("Using  \"verbose=FALSE \" slows down the algorithm, but it might feel faster. \n")
+if (verbose) cat("Using  \"verbose=TRUE \" slows down the algorithm, but it might feel faster. \n")
 
 if (type=="permutation") cat("type=\"permutation\" is specified. \n Using permutation for the F (and Fs) process, but sign-flipping for O process. \n Get some snack if M is large and model is complex. \n If \"force.permutation.with.O=TRUE\", ignore the warning and so help you god.")
 
@@ -1127,7 +1128,7 @@ if (type=="permutation") cat("type=\"permutation\" is specified. \n Using permut
 
 
 
-id<-fit$data[,names(formula(fit$modelStruct$reStr))]
+if (ind.RE==FALSE) id<-fit$data[,names(formula(fit$modelStruct$reStr))] else id<-fit$data[,names(formula(fit$modelStruct$reStr))[1]]
 
 N<-length(unique(id))
 n<-table(id)
@@ -1143,8 +1144,13 @@ if (sum(as.numeric(id)-id.c)!=0) stop("The ID variables needs to be numeric and 
 
 x<-model.matrix(fit, data=fit$data   )
 
-ZZ<- model.matrix(formula(fit$modelStruct$reStr)[[1]],data=fit$data)
+if (ind.RE==FALSE)  ZZ<- model.matrix(formula(fit$modelStruct$reStr)[[1]],data=fit$data) else {
+  for (hh in length(formula(fit$modelStruct$reStr)):1){
+    ZZi<-model.matrix(formula(fit$modelStruct$reStr)[[hh]],data=fit$data)
+  if (hh==length(formula(fit$modelStruct$reStr))) ZZ<-ZZi else ZZ<-cbind(ZZ,ZZi)
+  }
 
+}
 
 
 ###start gof
@@ -1177,7 +1183,7 @@ if (use.sigmoid==TRUE){
 vc<-VarCorr(fit)
 sigma.est<-as.numeric(vc[nrow(vc),1])
 
-D<-getVarCov(fit)
+if(ind.RE==FALSE) D<-getVarCov(fit) else D<-diag(vc[(1:(nrow(vc)-1))[seq(from=2,by=2,length.out=(nrow(vc)-1)/2)],1])
 
 beta.f<-fixef(fit)
 
@@ -1722,6 +1728,1567 @@ res
 
 
 
+######more lambdas, only simulation
+
+# use variance from sim processes to std the test stat, max test stat also in the sim processes (assures the size is correct without the need to adjust for multiplicity)
+
+#lambda - can be a vector!
+
+#subset F also available
+
+#ind.RE not supported!
+
+gof.lmm.std.test2.opt.lam.v2<-function(fit,subset.fix=NULL,refit.subset.fix=FALSE,residuals=c("individual","cluster"),std.type=c(1,2),
+                                    use.correction.for.imbalance=FALSE,
+                                    M=100,
+                                    order.by.original=TRUE,verbose=FALSE,
+                                    flip.cluster=TRUE,use.normal=FALSE,use.mammen=FALSE,
+                                    lambda=c(0.1,0.5,1,2,1000),transform=TRUE){
+
+  ####checks, warnings
+
+  if (is.null(fit$data)) stop("Model was fitted with keep.data=FALSE. Use keep.data=TRUE.")
+
+  if (verbose) cat("Using  \"verbose=TRUE \" slows down the algorithm, but it might feel faster. \n")
+
+
+
+  ####preliminaries
+
+
+
+
+  id<-fit$data[,names(formula(fit$modelStruct$reStr))]
+
+  N<-length(unique(id))
+  n<-table(id)
+
+
+  id.c<-NA
+  for (ii in 1:N){
+    id.c<-c(id.c,rep(ii,n[ii]))
+  }
+  id.c<-id.c[-1]
+
+  if (sum(as.numeric(id)-id.c)!=0) stop("The ID variables needs to be numeric and ordered from 1:N.")
+
+  x<-model.matrix(fit, data=fit$data   )
+
+
+  ZZ<- model.matrix(formula(fit$modelStruct$reStr)[[1]],data=fit$data)
+
+
+
+  ###start gof
+
+
+
+  resI<-residuals(fit, level = 1  )
+
+
+  resP<-residuals(fit, level = 0  )
+
+  estI<-fitted(fit,level=1)
+  estP<-fitted(fit,level=0)
+
+  if (transform==TRUE){
+    estI<-trans(estI)
+    estP<-trans(estP)
+  }
+
+  orI<-order(estI)
+  orP<-order(estP)
+
+
+  ####lambda!
+  sigmaI<-sigmaP<-list()
+  for (ll in 1:length(lambda)){
+    sigmaI[[ll]]<-sigf(estI[orI],lambda[ll])
+    sigmaP[[ll]]<-sigf(estP[orP],lambda[ll])
+  }
+
+
+  vc<-VarCorr(fit)
+  sigma.est<-as.numeric(vc[nrow(vc),1])
+
+
+  D<-getVarCov(fit)
+
+  beta.f<-fixef(fit)
+
+  V<-list()
+  V.i<-list()
+  Z<-list()
+
+  H<-matrix(0,ncol=ncol(x),nrow=ncol(x))
+  for (gg in 1:N){
+    if (ncol(ZZ)==1) Z[[gg]]<-matrix(ZZ[id==gg,],ncol=1) else Z[[gg]]<-ZZ[id==gg,]
+    if (n[gg]==1) Z[[gg]]<-matrix(Z[[gg]],nrow=1)
+    I<-diag(rep(1),n[[gg]])
+    V[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]])+sigma.est*I
+    V.i[[gg]]<-V[[gg]]%^%(-1)
+    if (n[gg]!=1) H<-H+t(x[id==gg,])%*%V.i[[gg]]%*%x[id==gg,] else H<-H+matrix(x[id==gg,],ncol=1)%*%V.i[[gg]]%*%x[id==gg,]
+  }
+
+  H.i<-solve(H)
+
+
+  J<-list()
+  A<-list()
+  B<-list()
+
+  res.i.c<-resI
+
+
+  for (gg in 1:N){
+
+
+    if (n[gg]!=1) A[[gg]]<-sigma.est*V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%t(x[id==gg,]) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]]) else A[[gg]]<-sigma.est*V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%matrix(x[id==gg,],ncol=1) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]])
+
+    if (n[gg]!=1) B[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]]) %*%V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%t(x[id==gg,]) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]]) else B[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]]) %*%V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%matrix(x[id==gg,],ncol=1) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]])
+
+
+
+    I<-diag(rep(1,n[gg]))
+
+    if (residuals=="individual") J[[gg]]<-sigma.est*V.i[[gg]]-(A[[gg]])%*%ginv(B[[gg]])%*% Z[[gg]]%*%D%*%t(Z[[gg]])%*%V.i[[gg]] else J[[gg]]<-I-(A[[gg]]+B[[gg]])%*%ginv(B[[gg]])%*% Z[[gg]]%*%D%*%t(Z[[gg]])%*%V.i[[gg]]
+
+
+    if (residuals=="individual") res.i.c[id==gg]<- J[[gg]]%*% resI[id==gg] else  res.i.c[id==gg]<- J[[gg]]%*% resP[id==gg]
+
+
+
+  }
+
+
+
+  V.ii.inv<-list()
+  V.ii<-list()
+  S.i<-list()
+
+  if (residuals=="individual") res.i.c2<-resI else res.i.c2<-resP
+
+  respermute<-NA
+  resIst<-NA
+  resPst<-NA
+  for (gg in 1:N){
+    I<-diag(rep(1,n[gg]))
+
+    V.ii.inv[[gg]]<-V[[gg]]%^%(-0.5)
+    V.ii[[gg]]<-V[[gg]]%^%(0.5)
+
+    resPMp<-matrix(resP[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMp2<-V.ii.inv[[gg]]%*%resPMp
+
+    respermute<-c(respermute,resPMp2)
+
+    if (std.type==2) S.i[[gg]]<-V.ii.inv[[gg]] else S.i[[gg]]<-  1/sqrt( sigma.est )*diag(rep(1,n[gg]))
+    if (use.correction.for.imbalance==TRUE) S.i[[gg]]<-S.i[[gg]]/sqrt(n[gg])
+
+    resPMpC<-matrix(res.i.c[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2<-S.i[[gg]]%*%resPMpC
+    resPMpC2<-resPMpC2
+
+    resIst<-c(resIst,resPMpC2)
+
+
+    resPMpCP<-matrix(res.i.c2[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2P<-S.i[[gg]]%*%resPMpCP
+    resPMpC2P<-resPMpC2P
+
+    resPst<-c(resPst,resPMpC2P)
+
+  }
+
+  respermute<-respermute[-1]
+  resIst<-resIst[-1]
+  resPst<-resPst[-1]
+
+
+  resoI2<-resIst[orI]
+  t01<- estI
+
+  # if (use.sigmoid==FALSE) {
+
+  for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+    ig<-which(round(t01[orI],10)==round(ii,10))
+    resoI2[ig]<-sum(resoI2[ig])/length(ig)
+  }
+  # }
+
+  #if (use.sigmoid==FALSE) WI2<-1/sqrt(N )*cumsum(resoI2) else
+  WI2<-list()
+  for (ll in 1:length(lambda)){
+    WI2[[ll]]<-1/sqrt(N )*sigmaI[[ll]]%*%resoI2
+  }
+
+  #sdsWI2<-lapply(WI2,sd)
+
+
+
+  #WI2<-lapply(1:length(WI2),msdl,WI2,sdsWI2)
+
+
+
+  resoP2<-resPst[orP]
+  t01P<- estP
+
+  # if (use.sigmoid==FALSE) {
+  for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+    ig<-which(round(t01P[orP],10)==round(ii,10))
+    resoP2[ig]<-sum(resoP2[ig])/length(ig)
+  }
+  #}
+
+
+  # if (use.sigmoid==FALSE) WP2<-1/sqrt(N )*cumsum(resoP2) else WP2<-1/sqrt(N )*sigmaP%*%resoP2
+  WP2<-list()
+  for (ll in 1:length(lambda)){
+    WP2[[ll]]<-1/sqrt(N )*sigmaP[[ll]]%*%resoP2
+  }
+
+  #sdsWP2<-lapply(WP2,sd)
+
+
+
+  #WP2<-lapply(1:length(WP2),msdl,WP2,sdsWP2)
+
+
+  ##for Fs:
+  if (!is.null(subset.fix)){
+
+    if (refit.subset.fix==FALSE){
+    x.subset<-model.matrix(subset.fix, data=fit$data   )
+    cfs.fix.sub<-fixef(fit)[colnames(x.subset)]
+
+    estS<-x.subset%*%cfs.fix.sub
+    } else {
+      fits<-update(fit,subset.fix)
+      x.subset<-model.matrix(subset.fix, data=fit$data   )
+      cfs.fix.sub<-fixef(fits)[colnames(x.subset)]
+
+      estS<-x.subset%*%cfs.fix.sub
+
+    }
+    orS<-order(estS)
+
+
+    if (transform==TRUE){
+      estS<-trans(estS)
+    }
+
+    sigmaPS<-list()
+    for (ll in 1:length(lambda)){
+      sigmaPS[[ll]]<-sigf(estS[orS],lambda[ll])
+
+    }
+
+    resoP22<-resPst[orS]
+    t01P<- estS
+
+    #if (use.sigmoid==FALSE) {
+      for (ii in as.numeric(names(table(t01P[orS]))[which(table(t01P[orS])>1)])){
+        ig<-which(round(t01P[orS],10)==round(ii,10))
+        resoP22[ig]<-sum(resoP22[ig])/length(ig)
+      }
+    #}
+
+    WP2s<-list()
+    for (ll in 1:length(lambda)){
+      WP2s[[ll]]<-1/sqrt(N )*sigmaPS[[ll]]%*%resoP22
+    }
+
+    WsP21<-list()
+    estSm<-list()
+  } else {estS<-orS<-WsP21<-estSm<-WP2s<-NULL}
+
+
+
+  ####start sim/sign/permuted proces
+
+
+
+
+
+
+  WsP2<- WsI2 <-list()
+  estIm<-estPm<-list()
+
+  for (iiii in 1:M){
+
+    if (verbose) print(paste("Iteration: ",iiii,sep=""))
+
+
+    if (flip.cluster==FALSE) {if (use.normal==TRUE) smp<-rnorm(nrow(x)) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=nrow(x),replace=TRUE) else smp<-my.mammen(nrow(x))}}
+
+    newres<-NA
+    for (gg in 1:N){
+      if (flip.cluster==TRUE) {if (use.normal==TRUE) smp<-rnorm(1) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=1) else smp<-my.mammen(1)}}
+      if (flip.cluster==FALSE) newres<-c(newres, V.ii[[gg]]%*%( (respermute*smp)[id==gg])) else newres<-c(newres, ( (resP*smp)[id==gg]))
+    }
+
+    newres<-newres[-1]
+
+
+
+    ##prvi del procesa
+
+    prvi.del.p<-prvi.del<-NA
+
+    for (gg in 1:N){
+
+      prvi.del<-c(prvi.del,S.i[[gg]]%*%J[[gg]]%*%(newres[id==gg]))
+      if (residuals=="cluster") prvi.del.p<-c(prvi.del.p,S.i[[gg]]%*%(newres[id==gg])) else prvi.del.p<-c(prvi.del.p,sigma.est*S.i[[gg]]%*%V.i[[gg]]%*%(newres[id==gg]))
+
+    }
+
+    prvi.del<-prvi.del[-1]
+    prvi.del.p<-prvi.del.p[-1]
+
+    prvi.del.o<-prvi.del[orI]
+
+    t01<- estI
+
+    for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+      ig<-which(round(t01[orI],10)==round(ii,10))
+      prvi.del.o[ig]<-sum(prvi.del.o[ig])/length(ig)
+    }
+
+    I<-list()
+    for (ll in 1:length(lambda)){
+      I[[ll]]<-1/sqrt(N)*sigmaI[[ll]]%*%prvi.del.o
+    }
+    prvi.del.op<-prvi.del.p[orP]
+
+    t01P<- estP
+    for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+      ig<-which(round(t01P[orP],10)==round(ii,10))
+      prvi.del.op[ig]<-sum(prvi.del.op[ig])/length(ig)
+    }
+
+    Ip<-list()
+    for (ll in 1:length(lambda)){
+      Ip[[ll]]<-1/sqrt(N)*sigmaP[[ll]]%*%prvi.del.op
+    }
+
+    dva.1<-matrix(0,ncol=1,nrow=ncol(x))
+
+    for (gg  in 1:N){
+
+      if (n[gg]!=1) dva.1<-dva.1+  t(x[id==gg,])%*%V.i[[gg]]%*%(newres[id==gg]) else dva.1<-dva.1+  matrix(x[id==gg,],ncol=1)%*%V.i[[gg]]%*%(newres[id==gg])
+
+    }
+
+    drugi.del.p<-drugi.del<-NA
+
+    for (gg in 1:N){
+
+      drugi.del<-c(drugi.del,S.i[[gg]]%*%J[[gg]]%*%x[id==gg,]%*%H.i%*%dva.1)
+      if (residuals=="cluster") drugi.del.p<-c(drugi.del.p,S.i[[gg]]%*%x[id==gg,]%*%H.i%*%dva.1) else drugi.del.p<-c(drugi.del.p,sigma.est*S.i[[gg]]%*%V.i[[gg]]%*%x[id==gg,]%*%H.i%*%dva.1)
+
+
+    }
+
+    drugi.del<-drugi.del[-1]
+    drugi.del.p<-drugi.del.p[-1]
+
+    drugi.del.o<-drugi.del[orI]
+
+
+    t01<- estI
+
+    for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+      ig<-which(round(t01[orI],10)==round(ii,10))
+      drugi.del.o[ig]<-sum(drugi.del.o[ig])/length(ig)
+    }
+
+
+    drugi.del.op<-drugi.del.p[orP]
+    t01P<- estP
+    for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+      ig<-which(round(t01P[orP],10)==round(ii,10))
+      drugi.del.op[ig]<-sum(drugi.del.op[ig])/length(ig)
+    }
+
+
+    II<-IIp<-list()
+    for (ll in 1:length(lambda)){
+      II[[ll]]<-1/sqrt( N)*sigmaI[[ll]]%*%drugi.del.o
+      IIp[[ll]]<-1/sqrt( N)*sigmaP[[ll]]%*%drugi.del.op
+    }
+
+    mdif<-function(i,x,y) x[[i]]-y[[i]]
+    WsI2i<-lapply(1:length(lambda),mdif,I,II)
+    WsP2i<-lapply(1:length(lambda),mdif,Ip,IIp)
+
+
+
+
+
+    WsI2[[iiii]]<-WsI2i
+    WsP2[[iiii]]<-WsP2i
+
+
+
+    estIm[[iiii]]<-estI
+    estPm[[iiii]]<-estP
+
+
+
+
+
+    if (!is.null(subset.fix)){
+
+
+      ##prvi del procesa
+
+
+      prvi.del.op<-prvi.del.p[orS]
+
+      t01P<- estS
+      for (ii in as.numeric(names(table(t01P[orS]))[which(table(t01P[orS])>1)])){
+        ig<-which(round(t01P[orS],10)==round(ii,10))
+        prvi.del.op[ig]<-sum(prvi.del.op[ig])/length(ig)
+      }
+
+
+      Ips<-list()
+      for (ll in 1:length(lambda)){
+      Ips[[ll]]<-1/sqrt(N)*sigmaPS[[ll]]%*%prvi.del.op
+      }
+
+
+
+      drugi.del.op<-drugi.del.p[orS]
+      t01P<- estS
+      for (ii in as.numeric(names(table(t01P[orS]))[which(table(t01P[orS])>1)])){
+        ig<-which(round(t01P[orS],10)==round(ii,10))
+        drugi.del.op[ig]<-sum(drugi.del.op[ig])/length(ig)
+      }
+
+      IIps<-list()
+      for (ll in 1:length(lambda)){
+      IIps[[ll]]<-1/sqrt( N)*sigmaPS[[ll]]%*%drugi.del.op
+      }
+
+      WsP21i<-lapply(1:length(lambda),mdif,Ips,IIps)
+
+
+      WsP21[[iiii]]<-WsP21i
+      estSm[[iiii]]<-estS
+    }
+
+
+
+
+
+  }
+
+
+
+  cvmI<-unlist(lapply(WI2,CvM))
+  cvmP<-unlist(lapply(WP2,CvM))
+
+
+
+  ksI<-unlist(lapply(WI2,KS))
+  ksP<-unlist(lapply(WP2,KS))
+
+  if (!is.null(subset.fix)){
+  ksPs<-unlist(lapply(WP2s,KS))
+  cvmPs<-unlist(lapply(WP2s,CvM))
+}
+
+
+
+  cvmIom<-matrix(NA,nrow=M,ncol=length(lambda))
+  cvmPom<-matrix(NA,nrow=M,ncol=length(lambda))
+
+
+  ksIom<-matrix(NA,nrow=M,ncol=length(lambda))
+  ksPom<-matrix(NA,nrow=M,ncol=length(lambda))
+
+  if (!is.null(subset.fix)){
+  ksPsom<-matrix(NA,nrow=M,ncol=length(lambda))
+  cvmPsom<-matrix(NA,nrow=M,ncol=length(lambda))
+}
+
+  for (iiii in 1:M){
+    cvmIom[iiii,]<- unlist(lapply(WsI2[[iiii]],CvM))
+    cvmPom[iiii,]<- unlist(lapply(WsP2[[iiii]],CvM))
+
+
+    ksIom[iiii,]<- unlist(lapply(WsI2[[iiii]],KS))
+    ksPom[iiii,]<- unlist(lapply(WsP2[[iiii]],KS))
+    if (!is.null(subset.fix)){
+    cvmPsom[iiii,]<- unlist(lapply(WsP21[[iiii]],CvM))
+    ksPsom[iiii,]<- unlist(lapply(WsP21[[iiii]],KS))
+}
+  }
+  ps.cvm.I<-rep(NA,length(lambda))
+  ps.ks.I<-rep(NA,length(lambda))
+
+  ps.cvm.P<-rep(NA,length(lambda))
+  ps.ks.P<-rep(NA,length(lambda))
+  if (!is.null(subset.fix)){
+  ps.cvm.Ps<-rep(NA,length(lambda))
+  ps.ks.Ps<-rep(NA,length(lambda))
+}
+  for (i in 1:length(lambda)){
+    ps.cvm.I[i]<-p.val(cvmI[i],cvmIom[,i])
+    ps.cvm.P[i]<-p.val(cvmP[i],cvmPom[,i])
+
+    ps.ks.I[i]<-p.val(ksI[i],ksIom[,i])
+    ps.ks.P[i]<-p.val(ksP[i],ksPom[,i])
+    if (!is.null(subset.fix)){
+    ps.cvm.Ps[i]<-p.val(cvmPs[i],cvmPsom[,i])
+    ps.ks.Ps[i]<-p.val(ksPs[i],ksPsom[,i])
+    }
+  }
+
+
+  ##new part
+
+
+    sd.cvm.I<-apply(cvmIom,2,sd)
+  opt.l.cvmI<-which.max(cvmI/sd.cvm.I)
+
+
+    sd.cvm.P<-apply(cvmPom,2,sd)
+  opt.l.cvmP<-which.max(cvmP/sd.cvm.P)
+  #opt.l.cvmP<-which.max(cvmP)
+
+  sd.ks.I<-apply(ksIom,2,sd)
+  opt.l.ksI<-which.max(ksI/sd.ks.I)
+  #opt.l.ksI<-which.max(ksI)
+
+
+  sd.ks.P<-apply(ksPom,2,sd)
+  opt.l.ksP<-which.max(ksP/sd.ks.P)
+  #opt.l.ksP<-which.max(ksP)
+
+  if (!is.null(subset.fix)){
+  sd.cvm.Ps<-apply(cvmPsom,2,sd)
+  opt.l.cvmPs<-which.max(cvmPs/sd.cvm.Ps)
+
+  sd.ks.Ps<-apply(ksPsom,2,sd)
+  opt.l.ksPs<-which.max(ksPs/sd.ks.Ps)
+}
+
+  op.Icvm<-op.Pcvm<-
+    op.Iks<-op.Pks<-rep(NA,M)
+  if (!is.null(subset.fix)){
+  op.Pscvm<-op.Psks<-rep(NA,M)
+}
+
+  for (iiii in 1:M){
+
+
+    op.Icvm[iiii]<-max(cvmIom[iiii,]/sd.cvm.I)
+    op.Pcvm[iiii]<-max(cvmPom[iiii,]/sd.cvm.P)
+
+    op.Iks[iiii]<-max(ksIom[iiii,]/sd.ks.I)
+    op.Pks[iiii]<-max(ksPom[iiii,]/sd.ks.P)
+
+    if (!is.null(subset.fix)){
+    op.Pscvm[iiii]<-max(cvmPsom[iiii,]/sd.cvm.Ps)
+    op.Psks[iiii]<-max(ksPsom[iiii,]/sd.ks.Ps)
+    }
+  }
+
+
+
+  pI2cvm<-p.val(max(cvmI/sd.cvm.I),op.Icvm)
+  pP2cvm<-p.val(max(cvmP/sd.cvm.P),op.Pcvm)
+
+  pI2ks<-p.val(max(ksI/sd.ks.I),op.Iks)
+  pP2ks<-p.val(max(ksP/sd.ks.P),op.Pks)
+
+  p.I.cvm<-c(pI2cvm,ps.cvm.I)
+  p.I.ks<-c(pI2ks,ps.ks.I)
+
+  p.P.cvm<-c(pP2cvm,ps.cvm.P)
+  p.P.ks<-c(pP2ks,ps.ks.P)
+
+  if (!is.null(subset.fix)){
+  pPs2cvm<-p.val(max(cvmPs/sd.cvm.Ps),op.Pscvm)
+  pPs2ks<-p.val(max(ksPs/sd.ks.Ps),op.Psks)
+  p.Ps.cvm<-c(pPs2cvm,ps.cvm.Ps)
+  p.Ps.ks<-c(pPs2ks,ps.ks.Ps)
+  } else {
+    p.Ps.cvm<-p.Ps.ks<-NULL
+
+}
+
+  opt.l<-c(lambda[opt.l.cvmI],lambda[opt.l.ksI],lambda[opt.l.cvmP],lambda[opt.l.ksP])
+  if (!is.null(subset.fix)){
+  opt.ls<-c(lambda[opt.l.cvmPs],lambda[opt.l.ksPs])
+  } else {
+    opt.ls<-NULL
+}
+
+  #opt.l<-c(l.cvm.Io,l.ks.Io,l.cvm.Po,l.ks.Po)
+
+  # res<-list(O=WI2,F=WP2,Om=WsI2,Fm=WsP2,Fs=WP2s,Fsm=WsP21,predO=estI,predOm=estIm,predF=estP,predFm=estPm,predFs=estS,predFsm=estSm)
+  #  class(res)<-"gofLMM"
+  # res
+
+  list(p.cvm.O=p.I.cvm,p.ks.O=p.I.ks,p.cvm.F=p.P.cvm,p.ks.F=p.P.ks,
+       p.cvm.Fs=p.Ps.cvm,p.ks.Fs=p.Ps.ks,
+       opt.lambda=opt.l,
+       opt.lambda.FS=opt.ls,
+       O=WI2,F=WP2,Om=WsI2,Fm=WsP2,predO=estI,predOm=estIm,predF=estP,predFm=estPm,
+       Fs=WP2s,Fsm=WsP21,predFs=estS,predFsm=estSm,
+       lambdas=c("opt",lambda))
+
+} #end of function
+
+
+
+summary.opt.lambda<-function(x,lambda=NULL){
+  if (is.null(lambda)){
+  tab<-rbind(c(x$p.cvm.O,x$opt.lambda[1]),
+             c(x$p.ks.O,x$opt.lambda[2]),
+             c(x$p.cvm.F,x$opt.lambda[3]),
+             c(x$p.ks.F,x$opt.lambda[4])
+             )
+  if (!is.null(x$p.cvm.Fs)) tab<-rbind(tab,c(x$p.cvm.Fs,x$opt.lambda.FS[1]),
+                                       c(x$p.ks.Fs,x$opt.lambda.FS[2]))
+  if (is.null(x$p.cvm.Fs)) rownames(tab)<-c("O:CvM","O:KS","F:CvM","F:KS") else rownames(tab)<-c("O:CvM","O:KS","F:CvM","F:KS",
+                                                                                                 "Fs:CvM","Fs:KS")
+  colnames(tab)<-c(paste("p-value",x$lambdas,sep=":"),"opt.lambda")
+  tab
+  } else {
+    if (sum(x$lambdas==as.character(lambda))==0) stop("This lambda was not used in a call to gof.lmm.std.test2.opt.lam.v2") else {
+  id.l<-which(x$lambdas==as.character(lambda))
+  tab<-rbind(c(x$p.cvm.O[id.l],lambda),
+             c(x$p.ks.O[id.l],lambda),
+             c(x$p.cvm.F[id.l],lambda),
+             c(x$p.ks.F[id.l],lambda)
+  )
+  if (!is.null(x$p.cvm.Fs)) tab<-rbind(tab,c(x$p.cvm.Fs[id.l],lambda),
+                                       c(x$p.ks.Fs[id.l],lambda))
+  if (is.null(x$p.cvm.Fs)) rownames(tab)<-c("O:CvM","O:KS","F:CvM","F:KS") else rownames(tab)<-c("O:CvM","O:KS","F:CvM","F:KS","Fs:CvM","Fs:KS")
+  colnames(tab)<-c( "p-value" ,"lambda")
+  tab
+
+    }
+
+  }
+
+
+}
+
+
+plot.opt.lambda<-function(x,lambda=NULL,ts=c("CvM","KS"),proc=c("both","O","F"),type=2,subset.M=NULL,display.p=TRUE,digits.p=3,...){
+  txt1<-expression(W^O)
+  txt2<-expression(W^F)
+
+  if (is.null(subset.M)) sbset<-1:length(x$Om) else sbset<-sample(1:length(x$Om),subset.M)
+
+
+
+  if (is.null(lambda)){
+    nc=length(x$lambdas)
+   if (proc=="both") nr=2 else nr=1
+   par(mfcol=c(nr,nc),mar=c(4,4,3,1))
+
+   if (ts=="CvM") {p.v.o<-x$p.cvm.O[1];id.o<-which(x$lambdas==as.character(x$opt.lambda[1]))-1} else {p.v.o<-x$p.ks.O[1];id.o<-which(x$lambdas==as.character(x$opt.lambda[2]))-1}
+   if (ts=="CvM") {p.v.f<-x$p.cvm.F[1];id.f<-which(x$lambdas==as.character(x$opt.lambda[3]))-1} else {p.v.f<-x$p.ks.F[1];id.f<-which(x$lambdas==as.character(x$opt.lambda[4]))-1}
+
+   Oi<-lapply(1:length(x$Om),function(ii,x,id) x[[ii]][[id.o]],x$Om,i)
+   Fi<-lapply(1:length(x$Fm),function(ii,x,id) x[[ii]][[id.f]],x$Fm,i)
+    p.v.o<-round(p.v.o,digits.p)
+   p.v.f<-round(p.v.f,digits.p)
+   mn.t<-paste("Lambda:",x$lambdas[1],sep="")
+   if (display.p==TRUE)  mn.t.o<-paste(mn.t,"\n",ts,",p=",p.v.o,sep="");mn.t.f<-paste(mn.t,"\n",ts,",p=",p.v.f,sep="")
+   if (proc=="both"){
+     plot.gofLMM.part(x$O[[id.o]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,...)
+     plot.gofLMM.part(x$F[[id.f]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,... )
+   }
+   if (proc=="O"){
+     plot.gofLMM.part(x$O[[id.o]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,... )
+   }
+   if (proc=="F"){
+     plot.gofLMM.part(x$F[[id.f]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,...  )
+   }
+
+
+
+
+for (i in 1:(nc-1)){
+  Oi<-lapply(1:length(x$Om),function(ii,x,id) x[[ii]][[id]],x$Om,i)
+   Fi<-lapply(1:length(x$Fm),function(ii,x,id) x[[ii]][[id]],x$Fm,i)
+   if (ts=="CvM") p.v.o<-x$p.cvm.O[i+1] else p.v.o<-x$p.ks.O[i+1]
+   if (ts=="CvM") p.v.f<-x$p.cvm.F[i+1] else p.v.f<-x$p.ks.F[i+1]
+   p.v.o<-round(p.v.o,digits.p)
+   p.v.f<-round(p.v.f,digits.p)
+   mn.t<-paste("Lambda:",x$lambdas[i+1],sep="")
+   if (display.p==TRUE)  mn.t.o<-paste(mn.t,"\n",ts,",p=",p.v.o,sep="");mn.t.f<-paste(mn.t,"\n",ts,",p=",p.v.f,sep="")
+   if (proc=="both"){
+   plot.gofLMM.part(x$O[[i]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,... )
+   plot.gofLMM.part(x$F[[i]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,...  )
+   }
+   if (proc=="O"){
+     plot.gofLMM.part(x$O[[i]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,... )
+   }
+   if (proc=="F"){
+     plot.gofLMM.part(x$F[[i]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,...  )
+   }
+
+   }
+
+  } else {
+
+  if (length(lambda)==1){
+    if (lambda=="opt"){
+
+      nc=1
+      if (proc=="both") nr=2 else nr=1
+      par(mfcol=c(nr,nc),mar=c(4,4,3,1))
+
+      if (ts=="CvM") {p.v.o<-x$p.cvm.O[1];id.o<-which(x$lambdas==as.character(x$opt.lambda[1]))-1} else {p.v.o<-x$p.ks.O[1];id.o<-which(x$lambdas==as.character(x$opt.lambda[2]))-1}
+      if (ts=="CvM") {p.v.f<-x$p.cvm.F[1];id.f<-which(x$lambdas==as.character(x$opt.lambda[3]))-1} else {p.v.f<-x$p.ks.F[1];id.f<-which(x$lambdas==as.character(x$opt.lambda[4]))-1}
+
+      Oi<-lapply(1:length(x$Om),function(ii,x,id) x[[ii]][[id.o]],x$Om,i)
+      Fi<-lapply(1:length(x$Fm),function(ii,x,id) x[[ii]][[id.f]],x$Fm,i)
+      p.v.o<-round(p.v.o,digits.p)
+      p.v.f<-round(p.v.f,digits.p)
+      mn.t<-paste("Lambda:",x$lambdas[1],sep="")
+      if (display.p==TRUE)  mn.t.o<-paste(mn.t,"\n",ts,",p=",p.v.o,sep="");mn.t.f<-paste(mn.t,"\n",ts,",p=",p.v.f,sep="")
+      if (proc=="both"){
+        plot.gofLMM.part(x$O[[id.o]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,...)
+        plot.gofLMM.part(x$F[[id.f]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,... )
+      }
+      if (proc=="O"){
+        plot.gofLMM.part(x$O[[id.o]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,... )
+      }
+      if (proc=="F"){
+        plot.gofLMM.part(x$F[[id.f]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,...  )
+      }
+
+
+
+    } else {
+      nc=1
+      if (proc=="both") nr=2 else nr=1
+      par(mfcol=c(nr,nc),mar=c(4,4,3,1))
+
+      i=which(x$lambdas==as.character(lambda))-1
+        Oi<-lapply(1:length(x$Om),function(ii,x,id) x[[ii]][[id]],x$Om,i)
+        Fi<-lapply(1:length(x$Fm),function(ii,x,id) x[[ii]][[id]],x$Fm,i)
+        if (ts=="CvM") p.v.o<-x$p.cvm.O[i+1] else p.v.o<-x$p.ks.O[i+1]
+        if (ts=="CvM") p.v.f<-x$p.cvm.F[i+1] else p.v.f<-x$p.ks.F[i+1]
+        p.v.o<-round(p.v.o,digits.p)
+        p.v.f<-round(p.v.f,digits.p)
+        mn.t<-paste("Lambda:",x$lambdas[i+1],sep="")
+        if (display.p==TRUE)  mn.t.o<-paste(mn.t,"\n",ts,",p=",p.v.o,sep="");mn.t.f<-paste(mn.t,"\n",ts,",p=",p.v.f,sep="")
+        if (proc=="both"){
+          plot.gofLMM.part(x$O[[i]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,... )
+          plot.gofLMM.part(x$F[[i]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,...  )
+        }
+        if (proc=="O"){
+          plot.gofLMM.part(x$O[[i]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,... )
+        }
+        if (proc=="F"){
+          plot.gofLMM.part(x$F[[i]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,...  )
+        }
+
+      }
+
+
+
+
+
+  } else { #else for lambda>1
+lambda<-as.character(lambda)
+    nc=length(lambda)
+    if (proc=="both") nr=2 else nr=1
+    par(mfcol=c(nr,nc),mar=c(4,4,3,1))
+
+    if (sum(lambda=="opt")>0){
+      if (ts=="CvM") {p.v.o<-x$p.cvm.O[1];id.o<-which(x$lambdas==as.character(x$opt.lambda[1]))-1} else {p.v.o<-x$p.ks.O[1];id.o<-which(x$lambdas==as.character(x$opt.lambda[2]))-1}
+      if (ts=="CvM") {p.v.f<-x$p.cvm.F[1];id.f<-which(x$lambdas==as.character(x$opt.lambda[3]))-1} else {p.v.f<-x$p.ks.F[1];id.f<-which(x$lambdas==as.character(x$opt.lambda[4]))-1}
+
+      Oi<-lapply(1:length(x$Om),function(ii,x,id) x[[ii]][[id.o]],x$Om,i)
+      Fi<-lapply(1:length(x$Fm),function(ii,x,id) x[[ii]][[id.f]],x$Fm,i)
+      p.v.o<-round(p.v.o,digits.p)
+      p.v.f<-round(p.v.f,digits.p)
+      mn.t<-paste("Lambda:",x$lambdas[1],sep="")
+      if (display.p==TRUE)  mn.t.o<-paste(mn.t,"\n",ts,",p=",p.v.o,sep="");mn.t.f<-paste(mn.t,"\n",ts,",p=",p.v.f,sep="")
+      if (proc=="both"){
+        plot.gofLMM.part(x$O[[id.o]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,...)
+        plot.gofLMM.part(x$F[[id.f]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,... )
+      }
+      if (proc=="O"){
+        plot.gofLMM.part(x$O[[id.o]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,... )
+      }
+      if (proc=="F"){
+        plot.gofLMM.part(x$F[[id.f]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,...  )
+      }
+      lambda<-lambda[-which(lambda=="opt")]
+    }
+    for (ii in 1:length(lambda)){
+      i=which(x$lambdas==as.character(lambda[ii]))-1
+      Oi<-lapply(1:length(x$Om),function(ii,x,id) x[[ii]][[id]],x$Om,i)
+      Fi<-lapply(1:length(x$Fm),function(ii,x,id) x[[ii]][[id]],x$Fm,i)
+      if (ts=="CvM") p.v.o<-x$p.cvm.O[i+1] else p.v.o<-x$p.ks.O[i+1]
+      if (ts=="CvM") p.v.f<-x$p.cvm.F[i+1] else p.v.f<-x$p.ks.F[i+1]
+      p.v.o<-round(p.v.o,digits.p)
+      p.v.f<-round(p.v.f,digits.p)
+      mn.t<-paste("Lambda:",x$lambdas[i+1],sep="")
+      if (display.p==TRUE)  mn.t.o<-paste(mn.t,"\n",ts,",p=",p.v.o,sep="");mn.t.f<-paste(mn.t,"\n",ts,",p=",p.v.f,sep="")
+      if (proc=="both"){
+        plot.gofLMM.part(x$O[[i]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,... )
+        plot.gofLMM.part(x$F[[i]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,...  )
+      }
+      if (proc=="O"){
+        plot.gofLMM.part(x$O[[i]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],ylab=txt1,main=mn.t.o,... )
+      }
+      if (proc=="F"){
+        plot.gofLMM.part(x$F[[i]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],ylab=txt2,main=mn.t.f,...  )
+      }
+
+    }
+
+
+    }
+
+  }
+
+
+
+
+
+}
+
+
+
+#lambda needs to be a single value
+
+plot.opt.lambda.single<-function(x,lambda,ts=c("CvM","KS"),proc=c("O","F","Fs"),type=2,subset.M=NULL,...){
+
+  if (is.null(subset.M)) sbset<-1:length(x$Om) else sbset<-sample(1:length(x$Om),subset.M)
+
+
+      if (lambda=="opt"){
+
+
+        if (ts=="CvM") {id.o<-which(x$lambdas==as.character(x$opt.lambda[1]))-1} else {id.o<-which(x$lambdas==as.character(x$opt.lambda[2]))-1}
+        if (ts=="CvM") {id.f<-which(x$lambdas==as.character(x$opt.lambda[3]))-1} else {id.f<-which(x$lambdas==as.character(x$opt.lambda[4]))-1}
+        if (ts=="CvM") {id.fs<-which(x$lambdas==as.character(x$opt.lambda.FS[1]))-1} else {id.fs<-which(x$lambdas==as.character(x$opt.lambda.FS[2]))-1}
+
+        Oi<-lapply(1:length(x$Om),function(ii,x,id) x[[ii]][[id.o]],x$Om,i)
+        Fi<-lapply(1:length(x$Fm),function(ii,x,id) x[[ii]][[id.f]],x$Fm,i)
+        Fsi<-lapply(1:length(x$Fsm),function(ii,x,id) x[[ii]][[id.fs]],x$Fsm,i)
+
+       if (proc=="O"){
+          plot.gofLMM.part(x$O[[id.o]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],... )
+        }
+        if (proc=="F"){
+          plot.gofLMM.part(x$F[[id.f]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],...  )
+        }
+        if (proc=="Fs"){
+          plot.gofLMM.part(x$Fs[[id.fs]],Fsi[sbset],type=type,y=x$predFs,ym=x$predFsm[sbset],...  )
+        }
+
+
+      } else {
+
+        i=which(x$lambdas==as.character(lambda))-1
+        Oi<-lapply(1:length(x$Om),function(ii,x,id) x[[ii]][[id]],x$Om,i)
+        Fi<-lapply(1:length(x$Fm),function(ii,x,id) x[[ii]][[id]],x$Fm,i)
+        Fis<-lapply(1:length(x$Fms),function(ii,x,id) x[[ii]][[id]],x$Fms,i)
+
+        if (proc=="O"){
+          plot.gofLMM.part(x$O[[i]],Oi[sbset],type=type,y=x$predO,ym=x$predOm[sbset],... )
+        }
+        if (proc=="F"){
+          plot.gofLMM.part(x$F[[i]],Fi[sbset],type=type,y=x$predF,ym=x$predFm[sbset],...  )
+        }
+        if (proc=="Fs"){
+          plot.gofLMM.part(x$Fs[[i]],Fi[sbset],type=type,y=x$predFs,ym=x$predFm[sbset],...  )
+        }
+      }
+
+
+
+
+
+}
+
+
+#summary.opt.lambda(gf)
+#plot.opt.lambda(gf,lambda=c("opt",0.1,2,8,1000),ts="CvM",proc=c("both"),type=2,subset.M=100,cex.main=0.8,display.p=TRUE,digits.p=5)
+
+
+
+##test function, not general!
+
+gof.lmm.std.test<-function(fit,residuals=c("individual","cluster"),ind.RE=FALSE,std.type=c(1,2),use.correction.for.imbalance=FALSE,subset.fix=NULL,type=c("simulation","sign.flip","permutation"),M=100,order.by.original=TRUE,force.permutation.with.O=FALSE,verbose=FALSE,flip.cluster=TRUE,use.normal=FALSE,use.mammen=FALSE,use.sigmoid=FALSE,lambda=0.5,transform=TRUE){
+
+  ####checks, warnings
+
+  if (is.null(fit$data)) stop("Model was fitted with keep.data=FALSE. Use keep.data=TRUE.")
+
+  if (verbose) cat("Using  \"verbose=TRUE \" slows down the algorithm, but it might feel faster. \n")
+
+  if (type=="permutation") cat("type=\"permutation\" is specified. \n Using permutation for the F (and Fs) process, but sign-flipping for O process. \n Get some snack if M is large and model is complex. \n If \"force.permutation.with.O=TRUE\", ignore the warning and so help you god.")
+
+
+  ####preliminaries
+
+
+
+
+  if (ind.RE==FALSE) id<-fit$data[,names(formula(fit$modelStruct$reStr))] else id<-fit$data[,names(formula(fit$modelStruct$reStr))[1]]
+
+  N<-length(unique(id))
+  n<-table(id)
+
+
+  id.c<-NA
+  for (ii in 1:N){
+    id.c<-c(id.c,rep(ii,n[ii]))
+  }
+  id.c<-id.c[-1]
+
+  if (sum(as.numeric(id)-id.c)!=0) stop("The ID variables needs to be numeric and ordered from 1:N.")
+
+  x<-model.matrix(fit, data=fit$data   )
+
+  if (ind.RE==FALSE)  ZZ<- model.matrix(formula(fit$modelStruct$reStr)[[1]],data=fit$data) else {
+    for (hh in length(formula(fit$modelStruct$reStr)):1){
+      ZZi<-model.matrix(formula(fit$modelStruct$reStr)[[hh]],data=fit$data)
+      if (hh==length(formula(fit$modelStruct$reStr))) ZZ<-ZZi else ZZ<-cbind(ZZ,ZZi)
+    }
+
+  }
+
+
+  ###start gof
+
+
+
+  resI<-residuals(fit, level = 1  )
+
+
+  resP<-residuals(fit, level = 0  )
+
+  estI<-fitted(fit,level=1)
+  estP<-fitted(fit,level=0)
+
+  if (transform==TRUE){
+    estI<-trans(estI)
+    estP<-trans(estP)
+  }
+
+  orI<-order(estI)
+  orP<-order(estP)
+  orIr<-sample(1:length(orI),length(orI))
+  orPr<-sample(1:length(orP),length(orP))
+  if (use.sigmoid==TRUE){
+
+    sigmaI<-sigf(estI[orI],lambda)
+    sigmaP<-sigf(estP[orP],lambda)
+    sigmaIr<-sigf(estI[orIr],lambda)
+    sigmaPr<-sigf(estP[orPr],lambda)
+  }
+
+  vc<-VarCorr(fit)
+  sigma.est<-as.numeric(vc[nrow(vc),1])
+
+  if(ind.RE==FALSE) D<-getVarCov(fit) else D<-diag(vc[(1:(nrow(vc)-1))[seq(from=2,by=2,length.out=(nrow(vc)-1)/2)],1])
+
+  beta.f<-fixef(fit)
+
+  V<-list()
+  V.i<-list()
+  Z<-list()
+
+  H<-matrix(0,ncol=ncol(x),nrow=ncol(x))
+  for (gg in 1:N){
+    if (ncol(ZZ)==1) Z[[gg]]<-matrix(ZZ[id==gg,],ncol=1) else Z[[gg]]<-ZZ[id==gg,]
+    if (n[gg]==1) Z[[gg]]<-matrix(Z[[gg]],nrow=1)
+    I<-diag(rep(1),n[[gg]])
+    V[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]])+sigma.est*I
+    V.i[[gg]]<-V[[gg]]%^%(-1)
+    if (n[gg]!=1) H<-H+t(x[id==gg,])%*%V.i[[gg]]%*%x[id==gg,] else H<-H+matrix(x[id==gg,],ncol=1)%*%V.i[[gg]]%*%x[id==gg,]
+  }
+
+  H.i<-solve(H)
+
+
+  J<-list()
+  A<-list()
+  B<-list()
+
+  res.i.c<-resI
+
+
+  for (gg in 1:N){
+
+
+    if (n[gg]!=1) A[[gg]]<-sigma.est*V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%t(x[id==gg,]) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]]) else A[[gg]]<-sigma.est*V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%matrix(x[id==gg,],ncol=1) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]])
+
+    if (n[gg]!=1) B[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]]) %*%V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%t(x[id==gg,]) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]]) else B[[gg]]<-Z[[gg]]%*%D%*%t(Z[[gg]]) %*%V.i[[gg]]%*%( V[[gg]]- x[id==gg,]%*%H.i%*%matrix(x[id==gg,],ncol=1) )%*%V.i[[gg]]%*%Z[[gg]]%*%D%*%t(Z[[gg]])
+
+
+
+    I<-diag(rep(1,n[gg]))
+
+    if (residuals=="individual") J[[gg]]<-sigma.est*V.i[[gg]]-(A[[gg]])%*%ginv(B[[gg]])%*% Z[[gg]]%*%D%*%t(Z[[gg]])%*%V.i[[gg]] else J[[gg]]<-I-(A[[gg]]+B[[gg]])%*%ginv(B[[gg]])%*% Z[[gg]]%*%D%*%t(Z[[gg]])%*%V.i[[gg]]
+
+
+    if (residuals=="individual") res.i.c[id==gg]<- J[[gg]]%*% resI[id==gg] else  res.i.c[id==gg]<- J[[gg]]%*% resP[id==gg]
+
+
+
+  }
+
+
+
+  V.ii.inv<-list()
+  V.ii<-list()
+  S.i<-list()
+
+  if (residuals=="individual") res.i.c2<-resI else res.i.c2<-resP
+
+  respermute<-NA
+  resIst<-NA
+  resPst<-NA
+  for (gg in 1:N){
+    I<-diag(rep(1,n[gg]))
+
+    V.ii.inv[[gg]]<-V[[gg]]%^%(-0.5)
+    V.ii[[gg]]<-V[[gg]]%^%(0.5)
+
+    resPMp<-matrix(resP[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMp2<-V.ii.inv[[gg]]%*%resPMp
+
+    respermute<-c(respermute,resPMp2)
+
+    if (std.type==2) S.i[[gg]]<-V.ii.inv[[gg]] else S.i[[gg]]<-  1/sqrt( sigma.est )*diag(rep(1,n[gg]))
+    if (use.correction.for.imbalance==TRUE) S.i[[gg]]<-S.i[[gg]]/sqrt(n[gg])
+
+    resPMpC<-matrix(res.i.c[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2<-S.i[[gg]]%*%resPMpC
+    resPMpC2<-resPMpC2
+
+    resIst<-c(resIst,resPMpC2)
+
+
+    resPMpCP<-matrix(res.i.c2[id==gg],ncol=1,nrow=n[gg],byrow=F)
+    resPMpC2P<-S.i[[gg]]%*%resPMpCP
+    resPMpC2P<-resPMpC2P
+
+    resPst<-c(resPst,resPMpC2P)
+
+  }
+
+  respermute<-respermute[-1]
+  resIst<-resIst[-1]
+  resPst<-resPst[-1]
+
+
+  resoI2<-resIst[orI]
+  t01<- estI
+
+  if (use.sigmoid==FALSE) {
+
+    for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+      ig<-which(round(t01[orI],10)==round(ii,10))
+      resoI2[ig]<-sum(resoI2[ig])/length(ig)
+    }
+  }
+
+  resoI2r<-resIst[orIr]
+  t01<- estI
+
+  if (use.sigmoid==FALSE) {
+
+    for (ii in as.numeric(names(table(t01[orIr]))[which(table(t01[orIr])>1)])){
+      ig<-which(round(t01[orIr],10)==round(ii,10))
+      resoI2r[ig]<-sum(resoI2r[ig])/length(ig)
+    }
+  }
+
+  if (use.sigmoid==FALSE) WI2<-1/sqrt(N )*cumsum(resoI2) else WI2<-1/sqrt(N )*sigmaI%*%resoI2
+  if (use.sigmoid==FALSE) WI2r<-1/sqrt(N )*cumsum(resoI2r) else WI2r<-1/sqrt(N )*sigmaIr%*%resoI2r
+
+  WI2<-WI2/sd(WI2r)
+  resoP2<-resPst[orP]
+  t01P<- estP
+
+  if (use.sigmoid==FALSE) {
+    for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+      ig<-which(round(t01P[orP],10)==round(ii,10))
+      resoP2[ig]<-sum(resoP2[ig])/length(ig)
+    }
+  }
+
+  resoP2r<-resPst[orPr]
+  t01P<- estP
+
+  if (use.sigmoid==FALSE) {
+    for (ii in as.numeric(names(table(t01P[orPr]))[which(table(t01P[orPr])>1)])){
+      ig<-which(round(t01P[orPr],10)==round(ii,10))
+      resoP2r[ig]<-sum(resoP2r[ig])/length(ig)
+    }
+  }
+  if (use.sigmoid==FALSE) WP2<-1/sqrt(N )*cumsum(resoP2) else WP2<-1/sqrt(N )*sigmaP%*%resoP2
+  if (use.sigmoid==FALSE) WP2r<-1/sqrt(N )*cumsum(resoP2r) else WP2r<-1/sqrt(N )*sigmaPr%*%resoP2r
+  WP2<-WP2/sd(WP2r)
+
+  ##for Fs:
+  if (!is.null(subset.fix)){
+    x.subset<-model.matrix(subset.fix, data=fit$data   )
+    cfs.fix.sub<-fixef(fit)[colnames(x.subset)]
+
+    estS<-x.subset%*%cfs.fix.sub
+    orS<-order(estS)
+
+
+    if (transform==TRUE){
+      estS<-trans(estS)
+    }
+
+    if (use.sigmoid==TRUE) sigmaPS<-sigf(estS[orS],lambda)
+
+    resoP22<-resPst[orS]
+    t01P<- estS
+
+    if (use.sigmoid==FALSE) {
+      for (ii in as.numeric(names(table(t01P[orS]))[which(table(t01P[orS])>1)])){
+        ig<-which(round(t01P[orS],10)==round(ii,10))
+        resoP22[ig]<-sum(resoP22[ig])/length(ig)
+      }
+    }
+
+    if (use.sigmoid==FALSE) WP2s<-1/sqrt(N )*cumsum(resoP22) else WP2s<-1/sqrt(N )*sigmaPS%*%resoP22
+
+    WsP21<-list()
+    estSm<-list()
+  } else {estS<-orS<-WsP21<-estSm<-WP2s<-NULL}
+
+
+
+
+  ####start sim/sign/permuted proces
+
+
+  if (type=="simulation"){
+
+
+
+
+    WsP2<- WsI2 <-WsP2r<- WsI2r <-list()
+    estIm<-estPm<-list()
+
+    for (iiii in 1:M){
+
+      if (verbose) print(paste("Iteration: ",iiii,sep=""))
+
+
+      if (flip.cluster==FALSE) {if (use.normal==TRUE) smp<-rnorm(nrow(x)) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=nrow(x),replace=TRUE) else smp<-my.mammen(nrow(x))}}
+
+      newres<-NA
+      for (gg in 1:N){
+        if (flip.cluster==TRUE) {if (use.normal==TRUE) smp<-rnorm(1) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=1) else smp<-my.mammen(1)}}
+        if (flip.cluster==FALSE) newres<-c(newres, V.ii[[gg]]%*%( (respermute*smp)[id==gg])) else newres<-c(newres, ( (resP*smp)[id==gg]))
+      }
+
+      newres<-newres[-1]
+
+
+
+      ##prvi del procesa
+
+      prvi.del.p<-prvi.del<-NA
+
+      for (gg in 1:N){
+
+        prvi.del<-c(prvi.del,S.i[[gg]]%*%J[[gg]]%*%(newres[id==gg]))
+        if (residuals=="cluster") prvi.del.p<-c(prvi.del.p,S.i[[gg]]%*%(newres[id==gg])) else prvi.del.p<-c(prvi.del.p,sigma.est*S.i[[gg]]%*%V.i[[gg]]%*%(newres[id==gg]))
+
+      }
+
+      prvi.del<-prvi.del[-1]
+      prvi.del.p<-prvi.del.p[-1]
+
+      prvi.del.o<-prvi.del[orI]
+      prvi.del.or<-prvi.del[orIr]
+      t01<- estI
+
+      for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+        ig<-which(round(t01[orI],10)==round(ii,10))
+        prvi.del.o[ig]<-sum(prvi.del.o[ig])/length(ig)
+      }
+      t01<- estI
+
+      for (ii in as.numeric(names(table(t01[orIr]))[which(table(t01[orIr])>1)])){
+        ig<-which(round(t01[orIr],10)==round(ii,10))
+        prvi.del.or[ig]<-sum(prvi.del.or[ig])/length(ig)
+      }
+
+      if (use.sigmoid==FALSE) I<-1/sqrt(N)*cumsum(prvi.del.o) else I<-1/sqrt(N)*sigmaI%*%prvi.del.o
+      if (use.sigmoid==FALSE) Ir<-1/sqrt(N)*cumsum(prvi.del.or) else Ir<-1/sqrt(N)*sigmaIr%*%prvi.del.or
+      prvi.del.op<-prvi.del.p[orP]
+      prvi.del.opr<-prvi.del.p[orPr]
+      t01P<- estP
+      for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+        ig<-which(round(t01P[orP],10)==round(ii,10))
+        prvi.del.op[ig]<-sum(prvi.del.op[ig])/length(ig)
+      }
+      t01P<- estP
+      for (ii in as.numeric(names(table(t01P[orPr]))[which(table(t01P[orPr])>1)])){
+        ig<-which(round(t01P[orPr],10)==round(ii,10))
+        prvi.del.opr[ig]<-sum(prvi.del.opr[ig])/length(ig)
+      }
+
+      if (use.sigmoid==FALSE) Ip<-1/sqrt(N)*cumsum(prvi.del.op) else Ip<-1/sqrt(N)*sigmaP%*%prvi.del.op
+      if (use.sigmoid==FALSE) Ipr<-1/sqrt(N)*cumsum(prvi.del.opr) else Ipr<-1/sqrt(N)*sigmaPr%*%prvi.del.opr
+
+
+      dva.1<-matrix(0,ncol=1,nrow=ncol(x))
+
+      for (gg  in 1:N){
+
+        if (n[gg]!=1) dva.1<-dva.1+  t(x[id==gg,])%*%V.i[[gg]]%*%(newres[id==gg]) else dva.1<-dva.1+  matrix(x[id==gg,],ncol=1)%*%V.i[[gg]]%*%(newres[id==gg])
+
+      }
+
+      drugi.del.p<-drugi.del<-NA
+
+      for (gg in 1:N){
+
+        drugi.del<-c(drugi.del,S.i[[gg]]%*%J[[gg]]%*%x[id==gg,]%*%H.i%*%dva.1)
+        if (residuals=="cluster") drugi.del.p<-c(drugi.del.p,S.i[[gg]]%*%x[id==gg,]%*%H.i%*%dva.1) else drugi.del.p<-c(drugi.del.p,sigma.est*S.i[[gg]]%*%V.i[[gg]]%*%x[id==gg,]%*%H.i%*%dva.1)
+
+
+      }
+
+      drugi.del<-drugi.del[-1]
+      drugi.del.p<-drugi.del.p[-1]
+
+      drugi.del.o<-drugi.del[orI]
+      drugi.del.or<-drugi.del[orIr]
+
+      t01<- estI
+
+      for (ii in as.numeric(names(table(t01[orI]))[which(table(t01[orI])>1)])){
+        ig<-which(round(t01[orI],10)==round(ii,10))
+        drugi.del.o[ig]<-sum(drugi.del.o[ig])/length(ig)
+      }
+
+      t01<- estI
+
+      for (ii in as.numeric(names(table(t01[orIr]))[which(table(t01[orIr])>1)])){
+        ig<-which(round(t01[orIr],10)==round(ii,10))
+        drugi.del.or[ig]<-sum(drugi.del.or[ig])/length(ig)
+      }
+      drugi.del.op<-drugi.del.p[orP]
+      t01P<- estP
+      for (ii in as.numeric(names(table(t01P[orP]))[which(table(t01P[orP])>1)])){
+        ig<-which(round(t01P[orP],10)==round(ii,10))
+        drugi.del.op[ig]<-sum(drugi.del.op[ig])/length(ig)
+      }
+      drugi.del.opr<-drugi.del.p[orPr]
+      t01P<- estP
+      for (ii in as.numeric(names(table(t01P[orPr]))[which(table(t01P[orPr])>1)])){
+        ig<-which(round(t01P[orPr],10)==round(ii,10))
+        drugi.del.opr[ig]<-sum(drugi.del.opr[ig])/length(ig)
+      }
+
+
+      if (use.sigmoid==FALSE) II<-1/sqrt( N)*cumsum(drugi.del.o) else II<-1/sqrt( N)*sigmaI%*%drugi.del.o
+      if (use.sigmoid==FALSE) IIp<-1/sqrt( N)*cumsum(drugi.del.op) else IIp<-1/sqrt( N)*sigmaP%*%drugi.del.op
+      if (use.sigmoid==FALSE) IIr<-1/sqrt( N)*cumsum(drugi.del.or) else IIr<-1/sqrt( N)*sigmaIr%*%drugi.del.or
+      if (use.sigmoid==FALSE) IIpr<-1/sqrt( N)*cumsum(drugi.del.opr) else IIpr<-1/sqrt( N)*sigmaP%*%drugi.del.opr
+
+      WsI2[[iiii]]<-I-II
+      WsP2[[iiii]]<-Ip-IIp
+      WsI2r[[iiii]]<-Ir-IIr
+      WsP2r[[iiii]]<-Ipr-IIpr
+      estIm[[iiii]]<-estI
+      estPm[[iiii]]<-estP
+
+      if (!is.null(subset.fix)){
+
+
+        ##prvi del procesa
+
+
+        prvi.del.op<-prvi.del.p[orS]
+
+        t01P<- estS
+        for (ii in as.numeric(names(table(t01P[orS]))[which(table(t01P[orS])>1)])){
+          ig<-which(round(t01P[orS],10)==round(ii,10))
+          prvi.del.op[ig]<-sum(prvi.del.op[ig])/length(ig)
+        }
+
+
+        if (use.sigmoid==FALSE) Ip<-1/sqrt(N)*cumsum(prvi.del.op) else Ip<-1/sqrt(N)*sigmaPS%*%prvi.del.op
+
+
+
+
+        drugi.del.op<-drugi.del.p[orS]
+        t01P<- estS
+        for (ii in as.numeric(names(table(t01P[orS]))[which(table(t01P[orS])>1)])){
+          ig<-which(round(t01P[orS],10)==round(ii,10))
+          drugi.del.op[ig]<-sum(drugi.del.op[ig])/length(ig)
+        }
+
+
+        if (use.sigmoid==FALSE) IIp<-1/sqrt( N)*cumsum(drugi.del.op) else IIp<-1/sqrt( N)*sigmaPS%*%drugi.del.op
+
+        WsP21[[iiii]]<-Ip-IIp
+        estSm[[iiii]]<-estS
+      }
+
+    }
+
+
+
+
+  }
+
+  if (type!="simulation"){
+
+    if (type=="sign.flip") {
+
+      WsP2<- WsI2 <-list()
+      estIm<-estPm<-list()
+
+      for (iiii in 1:M){
+
+        if (verbose) print(paste("Iteration: ",iiii,sep=""))
+
+        if (flip.cluster==FALSE) {if (use.normal==FALSE) {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=nrow(x),replace=TRUE) else smp<-my.mammen(nrow(x)) } else smp<-rnorm(nrow(x))}
+
+        ys<-NA
+        for (gg in 1:N){
+          if (flip.cluster==TRUE) {if (use.normal==TRUE) smp<-rnorm(1) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=1) else smp<-my.mammen(1)}}
+          if (flip.cluster==FALSE) ys<-c(ys,estP[id==gg]+  V.ii[[gg]]%*%( (respermute*smp)[id==gg])) else ys<-c(ys,estP[id==gg]+  ( (resP*smp)[id==gg]))
+        }
+        ys<-ys[-1]
+
+        datas<-fit$data
+        datas[,as.character(fit$call$fixed)[2]]<-ys
+
+
+
+        fits<-suppressWarnings(update(fit,data=datas))
+
+        if (order.by.original==FALSE&use.sigmoid==TRUE){
+
+          estI<-fitted(fits,level=1)
+          estP<-fitted(fits,level=0)
+          if (transform==TRUE){
+            estI<-trans(estI)
+            estP<-trans(estP)
+          }
+          orI<-order(estI)
+          orP<-order(estP)
+
+
+          sigmaI<-sigf(estI[orI],lambda)
+          sigmaP<-sigf(estP[orP],lambda)
+          if (!is.null(subset.fix)){
+            x.subset<-model.matrix(subset.fix, data=fit$data   )
+            cfs.fix.sub<-fixef(fits)[colnames(x.subset)]
+
+            estS<-x.subset%*%cfs.fix.sub
+
+            if (transform==TRUE){
+              estS<-trans(estS)
+            }
+            orS<-order(estS)
+            sigmaPS<-sigf(estS[orS],lambda)
+          }
+
+        }
+
+        if (use.sigmoid==FALSE) {
+          sim.proc<-get.sim.proc(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance,subset.fix=subset.fix,order.by.original=order.by.original,or.original.fitted.I=orI,or.original.fitted.P=orP,or.original.fitted.S=orS,
+                                 original.fitted.I=estI ,original.fitted.P=estP ,original.fitted.S=estS,
+                                 n=n,N=N,x=x,ZZ=ZZ,id=id,transform=transform) } else {
+
+                                   sim.proc<-get.sim.proc.sigma(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance,subset.fix=subset.fix,order.by.original=order.by.original,or.original.fitted.I=orI,or.original.fitted.P=orP,or.original.fitted.S=orS,
+                                                                original.fitted.I=estI ,original.fitted.P=estP ,original.fitted.S=estS,
+                                                                n=n,N=N,x=x,ZZ=ZZ,id=id,sigmaI=sigmaI,sigmaP=sigmaP,sigmaPS=sigmaPS,transform=transform)
+
+                                 }
+
+        WsI2[[iiii]]<-sim.proc[[1]]
+        WsP2[[iiii]]<-sim.proc[[2]]
+
+        if (!is.null(subset.fix)) {
+
+          WsP21[[iiii]]<-sim.proc[[3]]
+          estIm[[iiii]]<-sim.proc[[4]]
+          estPm[[iiii]]<-sim.proc[[5]]
+          estSm[[iiii]]<-sim.proc[[6]]
+        } else {
+          estIm[[iiii]]<-sim.proc[[3]]
+          estPm[[iiii]]<-sim.proc[[4]]
+        }
+
+      } #end for
+
+    } else { #end if sign.flip
+
+      WsP2<- WsI2 <-list()
+      estIm<-estPm<-list()
+
+      for (iiii in 1:M){
+
+        if (verbose) print(paste("Iteration: ",iiii,sep=""))
+
+        ys<-NA
+        for (gg in 1:N){
+
+          if (n[gg]==1) smp<-1 else smp<-sample(1:n[gg])
+          ys<-c(ys,estP[id==gg]+  V.ii[[gg]]%*%( (respermute[id==gg])[smp]   )  )
+        }
+        ys<-ys[-1]
+
+        datas<-fit$data
+        datas[,as.character(fit$call$fixed)[2]]<-ys
+
+
+
+        fits<-suppressWarnings(update(fit,data=datas))
+
+        if (order.by.original==FALSE&use.sigmoid==TRUE){
+
+          estI<-fitted(fits,level=1)
+          estP<-fitted(fits,level=0)
+          if (transform==TRUE){
+            estI<-trans(estI)
+            estP<-trans(estP)
+          }
+          orI<-order(estI)
+          orP<-order(estP)
+
+
+          sigmaI<-sigf(estI[orI],lambda)
+          sigmaP<-sigf(estP[orP],lambda)
+          if (!is.null(subset.fix)){
+            x.subset<-model.matrix(subset.fix, data=fit$data   )
+            cfs.fix.sub<-fixef(fits)[colnames(x.subset)]
+
+            estS<-x.subset%*%cfs.fix.sub
+            if (transform==TRUE){
+              estS<-trans(estS)
+            }
+
+            orS<-order(estS)
+
+            sigmaPS<-sigf(estS[orS],lambda)
+          }
+
+        }
+
+        if (use.sigmoid==FALSE) {
+          sim.procF<-get.sim.proc.F(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance,subset.fix=subset.fix,order.by.original=order.by.original,or.original.fitted.P=orP,or.original.fitted.S=orS,
+                                    original.fitted.P=estP ,original.fitted.S=estS,
+                                    n=n,N=N,x=x,ZZ=ZZ,id=id,transform=transform) } else {
+
+                                      sim.procF<-get.sim.proc.F.sigma(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance,subset.fix=subset.fix,order.by.original=order.by.original,or.original.fitted.P=orP,or.original.fitted.S=orS,
+                                                                      original.fitted.P=estP ,original.fitted.S=estS,
+                                                                      n=n,N=N,x=x,ZZ=ZZ,id=id,sigmaP=sigmaP,sigmaPS=sigmaPS,transform=transform)
+                                    }
+
+
+        if (!is.null(subset.fix)) {WsP2[[iiii]]<-sim.procF[[1]];WsP21[[iiii]]<-sim.procF[[2]];estPm[[iiii]]<-sim.procF[[3]];estSm[[iiii]]<-sim.procF[[4]]} else  {WsP2[[iiii]]<-sim.procF[[1]];estPm[[iiii]]<-sim.procF[[2]] }
+
+
+        ###needed to force sign-flipp for O
+
+        if (force.permutation.with.O==FALSE){
+
+
+          if (flip.cluster==FALSE) {if (use.normal==FALSE) {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=nrow(x),replace=TRUE) else smp<-my.mammen(nrow(x)) } else smp<-rnorm(nrow(x))}
+
+          ys<-NA
+          for (gg in 1:N){
+            if (flip.cluster==TRUE) {if (use.normal==TRUE) smp<-rnorm(1) else {if (use.mammen==FALSE) smp<-sample(c(-1,1),size=1) else smp<-my.mammen(1)}}
+            if (flip.cluster==FALSE) ys<-c(ys,estP[id==gg]+  V.ii[[gg]]%*%( (respermute*smp)[id==gg])) else ys<-c(ys,estP[id==gg]+  ( (resP*smp)[id==gg]))
+          }
+          ys<-ys[-1]
+
+
+
+          datas<-fit$data
+          datas[,as.character(fit$call$fixed)[2]]<-ys
+
+
+
+          fits<-suppressWarnings(update(fit,data=datas))
+          if (order.by.original==FALSE&use.sigmoid==TRUE){
+
+            estI<-fitted(fits,level=1)
+            estP<-fitted(fits,level=0)
+            if (transform==TRUE){
+              estI<-trans(estI)
+              estP<-trans(estP)
+            }
+            orI<-order(estI)
+            orP<-order(estP)
+
+
+            sigmaI<-sigf(estI[orI],lambda)
+            sigmaP<-sigf(estP[orP],lambda)
+            if (!is.null(subset.fix)){
+              x.subset<-model.matrix(subset.fix, data=fit$data   )
+              cfs.fix.sub<-fixef(fits)[colnames(x.subset)]
+
+              estS<-x.subset%*%cfs.fix.sub
+              if (transform==TRUE){
+                estS<-trans(estS)
+              }
+              orS<-order(estS)
+
+              sigmaPS<-sigf(estS[orS],lambda)
+            }
+
+          }
+        }
+        if (use.sigmoid==FALSE) {
+          sim.procO<-get.sim.proc.O(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance, order.by.original=order.by.original,or.original.fitted.I=orI,
+                                    original.fitted.I=estI ,
+                                    n=n,N=N,x=x,ZZ=ZZ,id=id,transform=transform) } else {
+
+                                      sim.procO<-get.sim.proc.O.sigma(fits, residuals=residuals,std.type=std.type,use.correction.for.imbalance=use.correction.for.imbalance, order.by.original=order.by.original,or.original.fitted.I=orI,
+                                                                      original.fitted.I=estI ,
+                                                                      n=n,N=N,x=x,ZZ=ZZ,id=id,sigmaI=sigmaI,transform=transform)
+
+                                    }
+
+        WsI2[[iiii]]<-sim.procO[[1]]
+        estIm[[iiii]]<-sim.procO[[2]]
+
+      } #end for
+
+    } #end of else
+
+  } #end if not sim
+
+
+  sdsi<-lapply(WsI2r,function(x) sd(x))
+  mysdsii<-function(i,x,y) x[[i]]/y[[i]]
+  sdsip<-lapply(WsP2r,function(x) sd(x))
+  WsI2<-lapply(1:length(WsI2),mysdsii,WsI2,sdsi)
+  WsP2<-lapply(1:length(WsP2),mysdsii,WsP2,sdsip)
+
+  res<-list(O=WI2,F=WP2,Om=WsI2,Fm=WsP2,Fs=WP2s,Fsm=WsP21,predO=estI,predOm=estIm,predF=estP,predFm=estPm,predFs=estS,predFsm=estSm)
+  class(res)<-"gofLMM"
+  res
+
+
+} #end of function
 
 
 
